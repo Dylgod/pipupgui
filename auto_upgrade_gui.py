@@ -1,4 +1,6 @@
 import customtkinter
+from tkinter import PhotoImage
+from PIL import ImageTk
 import os
 
 class ScrollableLabelButtonFrame(customtkinter.CTkScrollableFrame):
@@ -76,14 +78,16 @@ class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("CTkScrollableFrame example")
-        # self.grid_rowconfigure(1, weight=1)
+        self.title("auto_upgrade_gui")
+        # icon = ImageTk.PhotoImage(file=r".\title_icon_python.png")
+        self.iconpath = ImageTk.PhotoImage(file=os.path.join(os.getcwd(), "title_icon_python.png"))
+        self.wm_iconbitmap()
+        self.iconphoto(False, self.iconpath)
+
         for index in range(7):
             self.columnconfigure(index, weight=1)
             self.rowconfigure(index, weight=1)
 
-        # create scrollable label and button frame
-        current_dir = os.path.dirname(os.path.abspath(__file__))
         self.scrollable_label_button_frame = ScrollableLabelButtonFrame(master=self, width=525, corner_radius=10)
         self.scrollable_label_button_frame.grid(row=1, column=1, padx=(18,0), pady=0, sticky="nsew")
         packages = ["Selenium,10.4,10.6,wheel", "pyinstaller-hooks-contrib,10.0.33,10.0.63,wheel", "customtkinter,12.0,16.1,wheel"]
