@@ -1,28 +1,56 @@
-import tkinter as tk
-from tkinter import ttk
-import sv_ttk
-import tkinter.font as tkFont
-import pywinstyles, sys
+import customtkinter
+import os
 
-# @formatter:off
+class ScrollableLabelButtonFrame(customtkinter.CTkScrollableFrame):
 
-class OSType(object):
-    LINUX = "linux"
-    MAC = "mac"
-    WIN = "win"
+    def __init__(self, master, command=None, **kwargs):
+        super().__init__(master, **kwargs, fg_color="#191a1a")
+        self.grid_columnconfigure(0, weight=0)
 
-def os_name():
-    if "linux" in sys.platform:
-        return OSType.LINUX
-    elif "darwin" in sys.platform:
-        return OSType.MAC
-    elif "win32" in sys.platform:
-        return OSType.WIN
-    else:
-        raise Exception("Could not determine the OS type!")
+        self.command = command
+        self.radiobutton_variable = customtkinter.StringVar()
+        self.label_list = []
+        self.button_list = []
+        self.chkbox_list = []
 
-OPERATING_SYSTEM = os_name()
-packages = ["Selenium,wheel,10.6,10.4","pyinstaller-hooks-contrib,wheel,10.0.63,10.0.33","customtkinter,wheel,16.1,12.0"]
+    def add_package(self, package_name, package_type, version_latest, version_current):
+        def get_children_data(self, widget):
+            print(widget.cget('text'))
+
+        borderframe = customtkinter.CTkFrame(self, border_color='dark gray', fg_color="#252626", border_width=1)
+        borderframe.grid_columnconfigure(0, weight=1)
+        borderframe.grid_columnconfigure((1, 2, 3), weight=0)
+        borderframe.grid_columnconfigure(4, weight=0, minsize=70)
+
+        chkbox = customtkinter.CTkCheckBox(borderframe, text=package_name, width=300)
+        label1 = customtkinter.CTkLabel(borderframe, text=package_type, anchor="e", width=80)
+        label2 = customtkinter.CTkLabel(borderframe, text=version_latest, anchor="e", width=80)
+        label3 = customtkinter.CTkLabel(borderframe, text=version_current, anchor="e", width=80)
+        button = customtkinter.CTkButton(borderframe, text="Ban", fg_color="#991b1b", width=50, height=24,
+                                         command=lambda: get_children_data(self, chkbox))
+
+        chkbox.grid(row=0, column=0, padx=(7, 0), pady=7, sticky="w")
+        label1.grid(row=0, column=1, pady=7, sticky="e")
+        label2.grid(row=0, column=2, pady=7, sticky="e")
+        label3.grid(row=0, column=3, padx=(0, 10), pady=7, sticky="e")
+        button.grid(row=0, column=4, padx=7, pady=7, sticky="e")
+
+        borderframe.grid(row=len(self.chkbox_list), column=0, pady=(0, 10), sticky="ew")
+        borderframe.grid_propagate(False)
+        borderframe.configure(width=525, height=40)
+
+        self.label_list.append(label1)
+        self.button_list.append(button)
+        self.chkbox_list.append(chkbox)
+
+    def remove_item(self, item):
+        for label1, button in zip(self.label_list, self.button_list):
+            if item == label1.cget("text"):
+                label1.destroy()
+                button.destroy()
+                self.label_list.remove(label1)
+                self.button_list.remove(button)
+                return
 
 def close_signout(master):
     try:
@@ -40,100 +68,31 @@ def set_window_default_settings(master):
     app_y = (monitor_height / 2) - (app_height / 2)
 
     master.geometry(f'{app_width}x{app_height}+{int(app_x)}+{int(app_y)}')
-    # win.resizable(False, False)
-    # master.minsize(500, 700)
+    master.resizable(False, False)
+    # master.minsize(600, 700)
     master.protocol("WM_DELETE_WINDOW", close_signout(master))
 
-def apply_theme_to_titlebar(root):
-    version = sys.getwindowsversion()
+class App(customtkinter.CTk):
+    def __init__(self):
+        super().__init__()
 
-    if version.major == 10 and version.build >= 22000:
-        # Set the title bar color to the background color on Windows 11 for better appearance
-        pywinstyles.change_header_color(root, "#1c1c1c" if sv_ttk.get_theme() == "dark" else "#fafafa")
-    elif version.major == 10:
-        pywinstyles.apply_style(root, "dark" if sv_ttk.get_theme() == "dark" else "normal")
-
-        # A hacky way to update the title bar's color on Windows 10 (it doesn't update instantly like on Windows 11)
-        root.wm_attributes("-alpha", 0.99)
-        root.wm_attributes("-alpha", 1)
-
-class PackageFrame(ttk.Frame):
-    def __init__(self, master, package_name, package_type, version_latest, version_current):
-        super().__init__(master, borderwidth=2, relief='raised', padding=5)
-
-        normal_font = tkFont.Font(family="Arial", size=12, weight=tkFont.NORMAL)
-        self.checked = tk.BooleanVar(self, True)
-
-        if len(package_name)>25:
-            package_name = package_name[0:25]+"..."
-
-        self.chk1 = ttk.Checkbutton(self, text=package_name, width=23, variable=self.checked).pack(side='left')
-        self.typelbl = ttk.Label(self, text=package_type, font=normal_font, width=6, anchor="e", padding=5).pack(side='right')
-        self.latestlbl = ttk.Label(self, text=version_latest, font=normal_font, width=9, anchor="w").pack(side='right')
-        self.currentlbl = ttk.Label(self, text=version_current, font=normal_font, width=11, anchor="w").pack(side='right')
-
-
-class OuterContainer(ttk.LabelFrame):
-    def __init__(self, parent, framename):
-        super().__init__(parent, text=framename, padding=10)
-
-        self.frame1 = None
-        self.var_1 = tk.BooleanVar(self, False)
-        self.var_2 = tk.BooleanVar(self, True)
-
-        self.add_widgets()
-
-    def add_widgets(self):
-        self.frame1 = ttk.Frame(self)
-        self.frame1.grid(row=0, column=0, pady=(0, 10), sticky="w")
-
-        if len(packages)>0:
-            for package in packages:
-                p_name,p_type,p_latest,p_current = [x.strip() for x in package.split(",")]
-                PackageFrame(self.frame1,p_name,p_type,p_latest,p_current).pack()
-
-    def ban_package(self):
-        pass
-
-    def unban_package(self):
-        pass
-
-class HeaderFrame(ttk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent, padding=15)
-
-        self.add_widgets()
-
-    def add_widgets(self):
-        ttk.Label(self, text="Package Update Manager", justify="left", anchor="w", font=("Roboto", 20)).pack(side="left")
-
-
-class App(ttk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent, padding=15)
-
-        for index in range(12):
+        self.title("CTkScrollableFrame example")
+        # self.grid_rowconfigure(1, weight=1)
+        for index in range(7):
             self.columnconfigure(index, weight=1)
             self.rowconfigure(index, weight=1)
 
-        HeaderFrame(self).grid(row=0, column=0, sticky="nsew")
-        OuterContainer(self, "Outdated Packages").grid(row=1, column=0, rowspan=5, sticky="nsew")
-        OuterContainer(self, "Banned Packages").grid(row=7, column=0, sticky="nsew")
-        ttk.Button(self, text="UPGRADE", style="Accent.TButton").grid(row=9, column=0, sticky="nsew")
-
-def main():
-    win = tk.Tk()
-    win.title("auto_update_gui")
-
-    if OPERATING_SYSTEM == 'win':
-        sv_ttk.set_theme("dark")
-        icon = tk.PhotoImage(file=r".\title_icon_python.png")
-        win.iconphoto(True, icon)
-
-    set_window_default_settings(win)
-    App(win).pack(expand=True, fill="y")
-    win.mainloop()
-
+        # create scrollable label and button frame
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.scrollable_label_button_frame = ScrollableLabelButtonFrame(master=self, width=525, corner_radius=10)
+        self.scrollable_label_button_frame.grid(row=1, column=1, padx=(18,0), pady=0, sticky="nsew")
+        packages = ["Selenium,10.4,10.6,wheel", "pyinstaller-hooks-contrib,10.0.33,10.0.63,wheel", "customtkinter,12.0,16.1,wheel"]
+        for i in packages:  # add items with images
+            p_name,p_type,p_current,p_latest = [item.strip() for item in i.split(",")]
+            self.scrollable_label_button_frame.add_package(p_name,p_type,p_current,p_latest)
 
 if __name__ == "__main__":
-    main()
+    customtkinter.set_appearance_mode("dark")
+    app = App()
+    set_window_default_settings(app)
+    app.mainloop()
