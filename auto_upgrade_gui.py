@@ -127,7 +127,7 @@ def main():
 
     if OPERATING_SYSTEM == 'win':
         sv_ttk.set_theme("dark")
-        icon = tk.PhotoImage(file=r"C:\Users\crtkd\PycharmProjects\Pip Controller\title_icon_python.png")
+        icon = tk.PhotoImage(file=r".\title_icon_python.png")
         win.iconphoto(True, icon)
 
     set_window_default_settings(win)
