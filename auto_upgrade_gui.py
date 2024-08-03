@@ -42,6 +42,7 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
         def unban_package(self, name_widget, banned_p_current, banned_p_latest, banned_p_type):
             p_name = name_widget.cget('text')
             self.upgrade_frame.add_package(package_name=p_name, version_current=banned_p_current, version_latest=banned_p_latest, package_type=banned_p_type)
+            borderframe.grid_forget()
 
         borderframe = customtkinter.CTkFrame(self, border_color='dark gray', fg_color="#252626", border_width=1)
         borderframe.grid_columnconfigure(0, weight=1)
@@ -109,6 +110,7 @@ class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
             p_latest = v_latest_widget.cget('text')
             p_type = type_widget.cget('text')
             self.banned_frame.add_package(package_name=p_name, version_current=p_current, version_latest=p_latest, package_type=p_type)
+            borderframe.grid_forget()
 
         borderframe = customtkinter.CTkFrame(self, border_color='dark gray', fg_color="#252626", border_width=1)
         borderframe.grid_columnconfigure(0, weight=1)
@@ -199,18 +201,12 @@ class App(customtkinter.CTk):
         self.upgrade_button.grid(row=5, column=1, padx=(18, 0), pady=(10, 10), sticky="nsew")
         
 
-        packages = ["Selenium,10.4,10.6,wheel", "pyinstaller-hooks-contrib,10.0.33,10.0.63,wheel", "customtkinter,12.0,16.1,wheel"]
+        packages = ["Selenium,10.4,10.6,wheel", "pyinstaller-hooks-contrib,10.0.33,10.0.63,wheel", "customtkinter,12.0,16.1,wheel",
+                    "darkdetect,0.8.0,1.0,wheel","packaging,24.1,24.2,wheel","pywinstyles,1.8,1.9,wheel","pillow,10.4.0,10.5.1,wheel"]
         for pack in packages:
             p_name,p_current,p_latest,p_type = [item.strip() for item in pack.split(",")]
             self.upgrade_frame.add_package(p_name,p_current,p_latest,p_type)
 
-        # bannedpackages = ["Selenium,10.4,10.6,wheel", "pyinstaller-hooks-contrib,10.0.33,10.0.63,wheel",
-        #             "customtkinter,12.0,16.1,wheel","Selenium,10.4,10.6,wheel", "pyinstaller-hooks-contrib,10.0.33,10.0.63,wheel",
-        #             "customtkinter,12.0,16.1,wheel","Selenium,10.4,10.6,wheel", "pyinstaller-hooks-contrib,10.0.33,10.0.63,wheel",
-        #             "customtkinter,12.0,16.1,wheel",]
-        # for ban in bannedpackages:
-        #     p_name,p_type,p_current,p_latest = [item.strip() for item in ban.split(",")]
-        #     self.banned_frame.add_package(package_name=p_name,package_type=p_type,version_current=p_current,version_latest=p_latest)
 
     def create_frame_channel(self, upgradablepackagesframe, bannedpackagesframe):
         """
