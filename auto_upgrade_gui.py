@@ -39,21 +39,22 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
 
     def add_package(self, package_name, version_current, version_latest, package_type):
 
-        def unban_package(self, name_widget, v_current_widget, v_latest_widget, type_widget):
+        def unban_package(self, name_widget, banned_p_current, banned_p_latest, banned_p_type):
             p_name = name_widget.cget('text')
-            p_current = v_current_widget.cget('text')
-            p_latest = v_latest_widget.cget('text')
-            p_type = type_widget.cget('text')
-            self.upgrade_frame.add_package(package_name=p_name, version_current=p_current, version_latest=p_latest, package_type=p_type)
+            self.upgrade_frame.add_package(package_name=p_name, version_current=banned_p_current, version_latest=banned_p_latest, package_type=banned_p_type)
 
         borderframe = customtkinter.CTkFrame(self, border_color='dark gray', fg_color="#252626", border_width=1)
         borderframe.grid_columnconfigure(0, weight=1)
         borderframe.grid_columnconfigure((1, 2, 3), weight=0)
         # borderframe.grid_columnconfigure(4, weight=0, minsize=70)
 
+        banned_p_current = version_current
+        banned_p_latest = version_latest
+        banned_p_type = package_type
+
         banned_p_lbl = customtkinter.CTkLabel(borderframe, text=package_name, anchor="w", width=100)
         button = customtkinter.CTkButton(borderframe, text="Unban", fg_color="#088c08", hover_color="#5da763", width=50, height=24,
-                                         command=lambda: unban_package(self, banned_p_lbl))
+                                         command=lambda: unban_package(self, banned_p_lbl, banned_p_current, banned_p_latest, banned_p_type))
 
         banned_p_lbl.grid(row=0, column=0, padx=(65,0), pady=7, sticky="w")
         button.grid(row=0, column=0, padx=7, pady=7, sticky="w")
