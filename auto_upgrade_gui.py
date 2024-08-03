@@ -1,8 +1,10 @@
 import customtkinter
 from PIL import ImageTk
 from PIL import Image
-import os
+import os, sys
 import webbrowser
+import subprocess
+import re
 # import asyncio Need for reset after console result
 
 # @formatter:off
@@ -161,6 +163,35 @@ def set_window_default_settings(master):
     master.resizable(False, False)
     master.protocol("WM_DELETE_WINDOW", close_signout(master))
 
+def determine_pip_list():
+    unprocessed_pip_rows = []
+    package_query = subprocess.Popen("pip list --outdated",
+                                     stdin=subprocess.DEVNULL,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE,
+                                     )
+
+    for line in package_query.stdout.read().decode().split("\n")[2:]:
+        unprocessed_pip_rows.append(line.strip("\r"))
+
+    if len(unprocessed_pip_rows) == 0:
+        print("Nothing to upgrade!")
+        sys.exit(0)
+
+    return unprocessed_pip_rows
+
+def process_pip_result(result_row):
+    cleaned_string = result_row.strip()
+
+    # Remove all spaces from string and seperate into groups
+    parts = re.findall(r'\S+', cleaned_string)
+
+    # Ensure we have exactly 4 parts. Pip seems to be consistent with this.
+    if len(parts) != 4:
+        raise ValueError(f"Expected 4 parts, but got {len(parts)} in string: {result_row}")
+
+    return parts[0], parts[1], parts[2], parts[3]
+
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
@@ -199,14 +230,13 @@ class App(customtkinter.CTk):
 
         self.upgrade_button = UpgradeAndResetButton(self)
         self.upgrade_button.grid(row=5, column=1, padx=(18, 0), pady=(10, 10), sticky="nsew")
-        
 
-        packages = ["Selenium,10.4,10.6,wheel", "pyinstaller-hooks-contrib,10.0.33,10.0.63,wheel", "customtkinter,12.0,16.1,wheel",
-                    "darkdetect,0.8.0,1.0,wheel","packaging,24.1,24.2,wheel","pywinstyles,1.8,1.9,wheel","pillow,10.4.0,10.5.1,wheel"]
-        for pack in packages:
-            p_name,p_current,p_latest,p_type = [item.strip() for item in pack.split(",")]
-            self.upgrade_frame.add_package(p_name,p_current,p_latest,p_type)
-
+        for row in pip_result:
+            if len(row) > 30:
+                name, version, latest, type = process_pip_result(row)
+            else:
+                continue
+            self.upgrade_frame.add_package(name, version, latest, type)
 
     def create_frame_channel(self, upgradablepackagesframe, bannedpackagesframe):
         """
@@ -219,6 +249,7 @@ class App(customtkinter.CTk):
 
 if __name__ == "__main__":
     customtkinter.set_appearance_mode("dark")
+    pip_result = determine_pip_list()
     app = App()
     set_window_default_settings(app)
     app.mainloop()
