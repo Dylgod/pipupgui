@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import customtkinter
 from PIL import ImageTk
 from PIL import Image
@@ -5,9 +7,17 @@ import os, sys
 import webbrowser
 import subprocess
 import re
-# import asyncio Need for reset after console result
+import platform
+import asyncio
+from async_tkinter_loop import async_handler
+from async_tkinter_loop.mixins import AsyncCTk
+from typing import TYPE_CHECKING
+from time import sleep
 
 # @formatter:off
+
+if TYPE_CHECKING:
+    from asyncio.subprocess import Process
 
 def callback(url):
     webbrowser.open_new(url)
@@ -157,7 +167,7 @@ def set_window_default_settings(master):
 
     master.geometry(f'{app_width}x{app_height}+{int(app_x)}+{int(app_y)}')
     master.resizable(False, False)
-    master.protocol("WM_DELETE_WINDOW", close_signout(master))
+
 
 def determine_pip_list():
     unprocessed_pip_rows = []
@@ -188,9 +198,31 @@ def process_pip_result(result_row):
 
     return parts[0], parts[1], parts[2], parts[3]
 
-class App(customtkinter.CTk):
+def stop():
+    if upgrade_subprocess is not None:
+        try:
+            upgrade_subprocess.kill()
+        except ProcessLookupError:
+            pass
+        except Exception as e:
+            print(type(e))
+
+class App(customtkinter.CTk, AsyncCTk):
+
+    def cleanup(self):
+        widgets = [self.upgrade_frame,self.banned_frame,self.header_frame,self.upgrade_button,self.reset_button,self.textbox_outer_frame]
+        for w in widgets:
+            try:
+                w.destroy()
+            except Exception:
+                continue
+
+        self.destroy()
+
+
     def __init__(self):
         super().__init__()
+        self.protocol("WM_DELETE_WINDOW", self.cleanup)
         self.reset_button = None
         self.textbox_outer_frame = None
         self.font = ("Roboto",21, "bold")
@@ -222,12 +254,7 @@ class App(customtkinter.CTk):
         self.create_frame_channel(self.upgrade_frame, self.banned_frame)
 
         self.upgrade_button = UpgradeAndResetButton(self, text="UPGRADE", command=None)
-        self.upgrade_button.configure(command=lambda: self.start_upgrade_tasks(self.header_frame,
-                                                                               self.upgrade_frame,
-                                                                               self.banned_frame,
-                                                                               self.upgrade_button,
-                                                                               upgradelist=self.upgrade_frame.chkbox_list,
-                                                                               bannedlist=self.banned_frame.banned_list))
+        self.upgrade_button.configure(command=self.start_upgrade_tasks)
         self.upgrade_button.grid(row=5, column=1, padx=(18, 0), pady=(10, 10), sticky="nsew")
 
         # for row in pip_result:
@@ -239,24 +266,14 @@ class App(customtkinter.CTk):
 
         #FOR TESTING
         self.upgrade_frame.add_package('name', '12.1', '12.3', 'wheel')
+        self.upgrade_frame.add_package('bruh', '12.2', '12.4', 'wheel')
 
-    def start_upgrade_tasks(self, *widgets, upgradelist, bannedlist):
 
-        async def upgrade_pip_package(package_list):
-
-            for package in package_list:
-                upgrade_proc = subprocess.Popen(f"pip install {package} --upgrade",
-                                                stdin=subprocess.DEVNULL,
-                                                stdout=subprocess.PIPE,
-                                                stderr=subprocess.PIPE,
-                                                )
-
-                upgrade_proc.communicate()
-
-        packs_to_upgrade = upgradelist
-        
-        for widget in widgets:
-            widget.grid_forget()
+    def load_upgrade_scrn(self):
+        self.header_frame.grid_forget()
+        self.upgrade_frame.grid_forget()
+        self.banned_frame.grid_forget()
+        self.upgrade_button.grid_forget()
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -270,7 +287,47 @@ class App(customtkinter.CTk):
         textbox.pack(expand=True, fill='both')
 
         self.reset_button = UpgradeAndResetButton(self, text="RESET")
+        self.reset_button.configure(command=stop)
         self.reset_button.grid(row=1, column=0, padx=(10, 10), pady=(10, 10), sticky="nsew")
+
+        return textbox
+
+    @async_handler
+    async def start_upgrade_tasks(self):
+        global upgrade_subprocess
+        textbox = self.load_upgrade_scrn()
+
+        # for pack in self.banned_frame.banned_list:
+        #     pass
+
+        for pack in self.upgrade_frame.chkbox_list:
+
+            cmd = f"pip list"
+            upgrade_subprocess = await asyncio.create_subprocess_shell(
+                cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            while upgrade_subprocess.returncode is None:
+                stdout = asyncio.create_task(upgrade_subprocess.stdout.readline())
+                stderr = asyncio.create_task(upgrade_subprocess.stderr.readline())
+
+                done, pending = await asyncio.wait({stdout, stderr}, return_when=asyncio.FIRST_COMPLETED)
+
+                if stdout in done:
+                    result_text = stdout.result().decode(console_encoding)
+                    textbox.insert("end", result_text)
+
+                if stderr in done:
+                    result_text = stderr.result().decode(console_encoding)
+                    textbox.insert("end", result_text, "red_text")
+
+                for item in pending:
+                    item.cancel()
+
+            textbox.insert("end", f"Finished with code {upgrade_subprocess.returncode}\n\n")
+            ping_subprocess = None
 
     def create_frame_channel(self, upgradablepackagesframe, bannedpackagesframe):
         """
@@ -282,8 +339,16 @@ class App(customtkinter.CTk):
         self.banned_frame.set_class_channel(self.upgrade_frame)
 
 if __name__ == "__main__":
+    upgrade_subprocess: Process | None = None
+    console_encoding = "utf-8"
+    if platform.system() == "Windows":
+        from ctypes import windll
+        console_code_page = windll.kernel32.GetConsoleOutputCP()
+        if console_code_page != 65001:
+            console_encoding = f"cp{console_code_page}"
+
     customtkinter.set_appearance_mode("dark")
     # pip_result = determine_pip_list()
     app = App()
     set_window_default_settings(app)
-    app.mainloop()
+    app.async_mainloop()
