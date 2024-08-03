@@ -13,8 +13,8 @@ def callback(url):
     webbrowser.open_new(url)
 
 class UpgradeAndResetButton(customtkinter.CTkButton):
-    def __init__(self, master, command=None, **kwargs):
-        super().__init__(master, **kwargs, text="UPGRADE", corner_radius=10, font=("Roboto",21, "bold"), width=550, height=50, fg_color="#569cf9",border_width=1, border_color="black")
+    def __init__(self, master, command=None, text="UPGRADE", **kwargs):
+        super().__init__(master, **kwargs, text=text, corner_radius=10, font=("Roboto",21, "bold"), width=550, height=50, fg_color="#569cf9",border_width=1, border_color="black")
 
 
 class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
@@ -22,7 +22,7 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
         super().__init__(master, **kwargs, fg_color="#191a1a")
         self.grid_columnconfigure(0, weight=1)
         self.command = command
-        self.label_list = []
+        self.banned_list = []
         self.button_list = []
         self.font = ("Roboto",14, "bold")
         self.upgrade_frame = None
@@ -43,6 +43,7 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
 
         def unban_package(self, name_widget, banned_p_current, banned_p_latest, banned_p_type):
             p_name = name_widget.cget('text')
+            self.banned_list.remove(p_name)
             self.upgrade_frame.add_package(package_name=p_name, version_current=banned_p_current, version_latest=banned_p_latest, package_type=banned_p_type)
             borderframe.grid_forget()
 
@@ -62,12 +63,12 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
         banned_p_lbl.grid(row=0, column=0, padx=(65,0), pady=7, sticky="w")
         button.grid(row=0, column=0, padx=7, pady=7, sticky="w")
 
-        borderframe.grid(row=len(self.label_list)+1, column=0, pady=(0, 10), sticky="w")
+        borderframe.grid(row=len(self.banned_list)+1, column=0, pady=(0, 10), sticky="w")
         borderframe.grid_propagate(False)
         borderframe.configure(width=525, height=40)
 
         # Wont need later when we destroy the frame itself and not the widgets within
-        self.label_list.append(banned_p_lbl)
+        self.banned_list.append(package_name)
         self.button_list.append(button)
 
         
@@ -77,10 +78,7 @@ class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
         super().__init__(master, **kwargs, fg_color="#191a1a")
         self.grid_columnconfigure(0, weight=0)
 
-        # Wont need later when we destroy the frame itself and not the widgets within
         self.command = command
-        self.label_list = []
-        self.button_list = []
         self.chkbox_list = []
         self.font = ("Roboto",14, "bold")
         self.banned_frame = None
@@ -107,6 +105,7 @@ class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
     def add_package(self, package_name, version_current, version_latest, package_type):
 
         def ban_package(self, name_widget, v_current_widget, v_latest_widget, type_widget):
+            self.chkbox_list.remove(name_widget.cget("text"))
             p_name = name_widget.cget('text')
             p_current = v_current_widget.cget('text')
             p_latest = v_latest_widget.cget('text')
@@ -138,10 +137,7 @@ class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
         borderframe.configure(width=525, height=40)
 
         # Wont need later when we destroy the frame itself and not the widgets within
-        self.label_list.append(p_type_lbl)
-        self.button_list.append(ban_button)
-        self.chkbox_list.append(chkbox)
-
+        self.chkbox_list.append(chkbox.cget("text"))
 
 
 def close_signout(master):
@@ -195,16 +191,13 @@ def process_pip_result(result_row):
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
+        self.reset_button = None
+        self.textbox_outer_frame = None
         self.font = ("Roboto",21, "bold")
         self.title("auto_upgrade_gui")
         self.iconpath = ImageTk.PhotoImage(file=os.path.join(os.getcwd(), "title_icon_python.png"))
         self.wm_iconbitmap()
         self.iconphoto(False, self.iconpath)
-
-        # for index in range(7):
-        #     self.columnconfigure(index, weight=1)
-        #     self.rowconfigure(index, weight=1)
-
         self.rowconfigure(1, weight=1)
 
         self.header_frame = customtkinter.CTkFrame(master=self, width=100, corner_radius=10, fg_color="#242424")
@@ -228,15 +221,56 @@ class App(customtkinter.CTk):
 
         self.create_frame_channel(self.upgrade_frame, self.banned_frame)
 
-        self.upgrade_button = UpgradeAndResetButton(self)
+        self.upgrade_button = UpgradeAndResetButton(self, text="UPGRADE", command=None)
+        self.upgrade_button.configure(command=lambda: self.start_upgrade_tasks(self.header_frame,
+                                                                               self.upgrade_frame,
+                                                                               self.banned_frame,
+                                                                               self.upgrade_button,
+                                                                               upgradelist=self.upgrade_frame.chkbox_list,
+                                                                               bannedlist=self.banned_frame.banned_list))
         self.upgrade_button.grid(row=5, column=1, padx=(18, 0), pady=(10, 10), sticky="nsew")
 
-        for row in pip_result:
-            if len(row) > 30:
-                name, version, latest, type = process_pip_result(row)
-            else:
-                continue
-            self.upgrade_frame.add_package(name, version, latest, type)
+        # for row in pip_result:
+        #     if len(row) > 30:
+        #         name, version, latest, type = process_pip_result(row)
+        #     else:
+        #         continue
+        #     self.upgrade_frame.add_package(name, version, latest, type)
+
+        #FOR TESTING
+        self.upgrade_frame.add_package('name', '12.1', '12.3', 'wheel')
+
+    def start_upgrade_tasks(self, *widgets, upgradelist, bannedlist):
+
+        async def upgrade_pip_package(package_list):
+
+            for package in package_list:
+                upgrade_proc = subprocess.Popen(f"pip install {package} --upgrade",
+                                                stdin=subprocess.DEVNULL,
+                                                stdout=subprocess.PIPE,
+                                                stderr=subprocess.PIPE,
+                                                )
+
+                upgrade_proc.communicate()
+
+        packs_to_upgrade = upgradelist
+        
+        for widget in widgets:
+            widget.grid_forget()
+
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
+        self.textbox_outer_frame = customtkinter.CTkFrame(self)
+        self.textbox_outer_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self.textbox_outer_frame.grid_columnconfigure(0, weight=1)
+        height = self.textbox_outer_frame.winfo_height()
+
+        textbox = customtkinter.CTkTextbox(self.textbox_outer_frame, width=250, height=600,font=("Roboto", 14), activate_scrollbars=True)
+        textbox.pack(expand=True, fill='both')
+
+        self.reset_button = UpgradeAndResetButton(self, text="RESET")
+        self.reset_button.grid(row=1, column=0, padx=(10, 10), pady=(10, 10), sticky="nsew")
 
     def create_frame_channel(self, upgradablepackagesframe, bannedpackagesframe):
         """
@@ -249,7 +283,7 @@ class App(customtkinter.CTk):
 
 if __name__ == "__main__":
     customtkinter.set_appearance_mode("dark")
-    pip_result = determine_pip_list()
+    # pip_result = determine_pip_list()
     app = App()
     set_window_default_settings(app)
     app.mainloop()
