@@ -19,6 +19,16 @@ from time import sleep
 if TYPE_CHECKING:
     from asyncio.subprocess import Process
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 def callback(url):
     webbrowser.open_new(url)
 
@@ -222,24 +232,24 @@ class App(customtkinter.CTk, AsyncCTk):
 
     def __init__(self):
         super().__init__()
-        self.protocol("WM_DELETE_WINDOW", self.cleanup)
+        self.protocol("WM_DELETE_WINDOW", close_signout(self))
         self.reset_button = None
         self.textbox_outer_frame = None
         self.font = ("Roboto",21, "bold")
         self.title("auto_upgrade_gui")
-        self.iconpath = ImageTk.PhotoImage(file=os.path.join(os.getcwd(), "title_icon_python.png"))
+        self.iconpath = ImageTk.PhotoImage(file=resource_path("title_icon_python.png"))
         self.wm_iconbitmap()
         self.iconphoto(False, self.iconpath)
         self.rowconfigure(1, weight=1)
 
         self.header_frame = customtkinter.CTkFrame(master=self, width=100, corner_radius=10, fg_color="#242424")
-        self.logo_image = customtkinter.CTkImage(Image.open(os.path.join(os.getcwd(), "title_icon_python.png")),size=(36, 36))
+        self.logo_image = customtkinter.CTkImage(Image.open(resource_path("title_icon_python.png")),size=(36, 36))
         header_logo = customtkinter.CTkLabel(self.header_frame, text="", image=self.logo_image, anchor='w')
         header_logo.grid(row=0, rowspan=2,column=0, sticky='w', padx=(18, 0), pady=(15, 15))
         header_title = customtkinter.CTkLabel(self.header_frame, text="auto_upgrade_gui", font=("Roboto",21, "bold"), anchor='w')
         header_title.grid(row=0, column=1, sticky='w', padx=(13, 0), pady=(15, 13))
 
-        self.logo_image = customtkinter.CTkImage(Image.open(os.path.join(os.getcwd(), "github_logo.png")),size=(128, 64))
+        self.logo_image = customtkinter.CTkImage(Image.open(resource_path("github_logo.png")),size=(128, 64))
         header_github = customtkinter.CTkButton(self.header_frame, text="", image=self.logo_image, anchor='nsew', hover_color="#242424", fg_color="transparent", command=lambda: callback(url="https://github.com/Dylgod/auto_upgrade_gui"))
         header_github.grid(row=0,column=4, sticky='e', padx=(140, 18), pady=(15, 13))
 
