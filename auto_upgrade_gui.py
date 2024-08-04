@@ -219,20 +219,9 @@ def stop():
 
 class App(customtkinter.CTk, AsyncCTk):
 
-    def cleanup(self):
-        widgets = [self.upgrade_frame,self.banned_frame,self.header_frame,self.upgrade_button,self.reset_button,self.textbox_outer_frame]
-        for w in widgets:
-            try:
-                w.destroy()
-            except Exception:
-                continue
-
-        self.destroy()
-
-
     def __init__(self):
         super().__init__()
-        self.protocol("WM_DELETE_WINDOW", close_signout(self))
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.reset_button = None
         self.textbox_outer_frame = None
         self.font = ("Roboto",21, "bold")
@@ -278,6 +267,21 @@ class App(customtkinter.CTk, AsyncCTk):
         self.upgrade_frame.add_package('name', '12.1', '12.3', 'wheel')
         self.upgrade_frame.add_package('bruh', '12.2', '12.4', 'wheel')
 
+    @async_handler
+    async def on_close(self):
+        # self.save_config()
+        await asyncio.sleep(0.5)
+
+        # Safely terminate all active asynchronous operations
+        tasks = [task for task in asyncio.all_tasks() if task is not asyncio.current_task()]
+        for task in tasks:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass  # Handles exceptions that occur when an asynchronous operation is canceled
+
+        self.destroy()
 
     def load_upgrade_scrn(self):
         self.header_frame.grid_forget()
@@ -361,4 +365,7 @@ if __name__ == "__main__":
     # pip_result = determine_pip_list()
     app = App()
     set_window_default_settings(app)
-    app.async_mainloop()
+    try:
+        app.async_mainloop()
+    except asyncio.CancelledError:
+        pass
