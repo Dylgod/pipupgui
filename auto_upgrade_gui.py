@@ -12,12 +12,13 @@ import asyncio
 from async_tkinter_loop import async_handler
 from async_tkinter_loop.mixins import AsyncCTk
 from typing import TYPE_CHECKING
-from time import sleep
 
 # @formatter:off
 
 if TYPE_CHECKING:
     from asyncio.subprocess import Process
+
+banned_list_file_path = os.path.join(os.getcwd(), 'pipupgui_banned.txt')
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -29,8 +30,42 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
+def search_str(file_path, word):
+    try:
+        if os.path.exists(file_path) == False:
+            with open(file_path, 'a'): pass
+    except PermissionError:
+        return "Permission Error when writing to banned list"
+
+    with open(file_path, 'r') as file:
+        # read all content of a file
+        content = file.read()
+        # check if string present in a file
+        if word in content:
+            return True
+        else:
+            return False
+
 def callback(url):
     webbrowser.open_new(url)
+
+def unban_packs_from_file(file_path, list):
+    try:
+        if os.path.exists(file_path) == False:
+            with open(file_path, 'a'): pass
+            return
+    except PermissionError:
+        return "Permission Error when writing to banned list"
+
+    with open(file_path, 'r') as file:
+        content = file.readlines()
+        for line in reversed(content):
+            for word in list:
+                if line == word:
+                    content.pop(content.index(line))
+
+    with open(file_path, 'w') as file:
+        file.writelines(content)
 
 class UpgradeAndResetButton(customtkinter.CTkButton):
     def __init__(self, master, command=None, text="UPGRADE", **kwargs):
@@ -225,7 +260,7 @@ class App(customtkinter.CTk, AsyncCTk):
         self.reset_button = None
         self.textbox_outer_frame = None
         self.font = ("Roboto",21, "bold")
-        self.title("auto_upgrade_gui")
+        self.title("pipupgui")
         self.iconpath = ImageTk.PhotoImage(file=resource_path("title_icon_python.png"))
         self.wm_iconbitmap()
         self.iconphoto(False, self.iconpath)
@@ -234,13 +269,13 @@ class App(customtkinter.CTk, AsyncCTk):
         self.header_frame = customtkinter.CTkFrame(master=self, width=100, corner_radius=10, fg_color="#242424")
         self.logo_image = customtkinter.CTkImage(Image.open(resource_path("title_icon_python.png")),size=(36, 36))
         header_logo = customtkinter.CTkLabel(self.header_frame, text="", image=self.logo_image, anchor='w')
-        header_logo.grid(row=0, rowspan=2,column=0, sticky='w', padx=(18, 0), pady=(15, 15))
-        header_title = customtkinter.CTkLabel(self.header_frame, text="auto_upgrade_gui", font=("Roboto",21, "bold"), anchor='w')
-        header_title.grid(row=0, column=1, sticky='w', padx=(13, 0), pady=(15, 13))
+        header_logo.grid(row=0, rowspan=2, column=0, sticky='w', padx=(18, 0), pady=(5, 10))
+        header_title = customtkinter.CTkLabel(self.header_frame, text="Pip Upgrade Interface", font=("Roboto",21, "bold"), anchor='w')
+        header_title.grid(row=0, rowspan=1, column=1, sticky='w', padx=(16, 0), pady=(5, 8))
 
         self.logo_image = customtkinter.CTkImage(Image.open(resource_path("github_logo.png")),size=(128, 64))
         header_github = customtkinter.CTkButton(self.header_frame, text="", image=self.logo_image, anchor='nsew', hover_color="#242424", fg_color="transparent", command=lambda: callback(url="https://github.com/Dylgod/auto_upgrade_gui"))
-        header_github.grid(row=0,column=4, sticky='e', padx=(140, 18), pady=(15, 13))
+        header_github.grid(row=0,column=3, sticky='e', padx=(100, 18))#, padx=(140, 18), pady=(15, 13)
 
         self.header_frame.grid(row=0, column=1, padx=(18, 0), pady=0, sticky="nsew")
 
@@ -311,10 +346,15 @@ class App(customtkinter.CTk, AsyncCTk):
         global upgrade_subprocess
         textbox = self.load_upgrade_scrn()
 
-        # for pack in self.banned_frame.banned_list:
-        #     pass
+        for pack in self.banned_frame.banned_list:
+            if not search_str(banned_list_file_path, pack):
+                with open(banned_list_file_path, 'a') as bl:
+                    bl.write(pack)
 
+        unban_container = []
         for pack in self.upgrade_frame.chkbox_list:
+
+            unban_container.append(pack+"\n")
 
             cmd = f"pip list"
             upgrade_subprocess = await asyncio.create_subprocess_shell(
@@ -342,6 +382,8 @@ class App(customtkinter.CTk, AsyncCTk):
 
             textbox.insert("end", f"Finished with code {upgrade_subprocess.returncode}\n\n")
             ping_subprocess = None
+
+        unban_packs_from_file(banned_list_file_path, unban_container)
 
     def create_frame_channel(self, upgradablepackagesframe, bannedpackagesframe):
         """
