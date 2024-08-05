@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
+from json import loads, dumps, JSONDecodeError
 import customtkinter
 from PIL import ImageTk
 from PIL import Image
+from webbrowser import open_new
 import os, sys
-import webbrowser
 import subprocess
 import re
 import platform
@@ -32,7 +32,7 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 def callback(url):
-    webbrowser.open_new(url)
+    open_new(url)
 
 def on_startup_ban_list(file_path):
     try:
@@ -45,7 +45,7 @@ def on_startup_ban_list(file_path):
     b_list = []
     with open(file_path, 'r') as file:
         r = file.read()
-        b_list = json.loads(r)
+        b_list = loads(r)
 
     return b_list
 
@@ -57,7 +57,7 @@ def ban_packs(file_path, pack_list):
     except PermissionError:
         return "Permission Error when writing to banned list"
 
-    banned_list_write_to_file = json.dumps(pack_list)
+    banned_list_write_to_file = dumps(pack_list)
     with open(file_path, 'w') as file:
         file.write(banned_list_write_to_file)
 
@@ -208,7 +208,6 @@ def set_window_default_settings(master):
     master.geometry(f'{app_width}x{app_height}+{int(app_x)}+{int(app_y)}')
     master.resizable(False, False)
 
-
 def determine_pip_list():
     unprocessed_pip_rows = []
     package_query = subprocess.Popen("pip list --outdated",
@@ -286,19 +285,16 @@ class App(customtkinter.CTk, AsyncCTk):
         self.upgrade_button.configure(command=self.start_upgrade_tasks)
         self.upgrade_button.grid(row=5, column=1, padx=(18, 0), pady=(10, 10), sticky="nsew")
 
-        # for row in pip_result:
-        #     if len(row) > 30:
-        #         name, version, latest, type = process_pip_result(row)
-        #     else:
-        #         continue
-        #     if name not in startup_banlist:
-        #         self.upgrade_frame.add_package(name, version, latest, type)
-        #     else:
-        #         self.banned_frame.add_package(name, version, latest, type)
+        for row in pip_result:
+            if len(row) > 30:
+                name, version, latest, type = process_pip_result(row)
+            else:
+                continue
+            if name not in startup_banlist:
+                self.upgrade_frame.add_package(name, version, latest, type)
+            else:
+                self.banned_frame.add_package(name, version, latest, type)
 
-        #FOR TESTING
-        self.upgrade_frame.add_package('name', '12.1', '12.3', 'wheel')
-        self.upgrade_frame.add_package('bruh', '12.2', '12.4', 'wheel')
 
     @async_handler
     async def on_close(self):
@@ -345,34 +341,39 @@ class App(customtkinter.CTk, AsyncCTk):
         textbox = self.load_upgrade_scrn()
 
         ban_packs(banned_list_file_path, self.banned_frame.banned_list)
+        if len(self.upgrade_frame.chkbox_list) > 0:
+            for pack in self.upgrade_frame.chkbox_list:
 
-        for pack in self.upgrade_frame.chkbox_list:
+                cmd = f"pip install {pack} --upgrade" # replace me with the right command when done.
+                upgrade_subprocess = await asyncio.create_subprocess_shell(
+                    cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
 
-            cmd = f"pip list" # replace me with the right command when done.
-            upgrade_subprocess = await asyncio.create_subprocess_shell(
-                cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+                while upgrade_subprocess.returncode is None:
+                    stdout = asyncio.create_task(upgrade_subprocess.stdout.readline())
+                    stderr = asyncio.create_task(upgrade_subprocess.stderr.readline())
 
-            while upgrade_subprocess.returncode is None:
-                stdout = asyncio.create_task(upgrade_subprocess.stdout.readline())
-                stderr = asyncio.create_task(upgrade_subprocess.stderr.readline())
+                    done, pending = await asyncio.wait({stdout, stderr}, return_when=asyncio.FIRST_COMPLETED)
 
-                done, pending = await asyncio.wait({stdout, stderr}, return_when=asyncio.FIRST_COMPLETED)
+                    if stdout in done:
+                        result_text = stdout.result().decode(console_encoding)
+                        textbox.insert("end", result_text)
 
-                if stdout in done:
-                    result_text = stdout.result().decode(console_encoding)
-                    textbox.insert("end", result_text)
+                    if stderr in done:
+                        result_text = stderr.result().decode(console_encoding)
+                        textbox.insert("end", result_text, "red_text")
 
-                if stderr in done:
-                    result_text = stderr.result().decode(console_encoding)
-                    textbox.insert("end", result_text, "red_text")
+                    for item in pending:
+                        item.cancel()
 
-                for item in pending:
-                    item.cancel()
+                upgrade_subprocess = None
 
-            ping_subprocess = None
+        if len(self.banned_frame.banned_list)>0:
+            textbox.insert("end", "\nBanned Packages:\n----------------\n")
+            for pack in self.banned_frame.banned_list:
+                textbox.insert("end", pack)
 
     def create_frame_channel(self, upgradablepackagesframe, bannedpackagesframe):
         """
@@ -393,7 +394,10 @@ if __name__ == "__main__":
             console_encoding = f"cp{console_code_page}"
 
     customtkinter.set_appearance_mode("dark")
-    startup_banlist = on_startup_ban_list(banned_list_file_path)
+    try:
+        startup_banlist = on_startup_ban_list(banned_list_file_path)
+    except JSONDecodeError:
+        startup_banlist = []
     pip_result = determine_pip_list()
     app = App()
     set_window_default_settings(app)
