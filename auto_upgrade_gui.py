@@ -144,7 +144,7 @@ class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
         placeholder_ver_current_lbl.grid(row=0, column=1, pady=7, padx=(27,0), sticky="w")
         placeholder_ver_latest_lbl.grid(row=0, column=2, pady=7, padx=(5,0), sticky="w")
         placeholder_type_lbl.grid(row=0, column=3, padx=(20, 10), pady=7, sticky="e")
-        
+
         self.placeholder.grid(row=0, column=0, pady=(0, 10), sticky="ew")
         self.placeholder.grid_propagate(False)
         self.placeholder.configure(width=525, height=40)
@@ -237,28 +237,20 @@ def process_pip_result(result_row):
 
     return parts[0], parts[1], parts[2], parts[3]
 
-def stop():
-    if upgrade_subprocess is not None:
-        try:
-            upgrade_subprocess.kill()
-        except ProcessLookupError:
-            pass
-        except Exception as e:
-            print(type(e))
 
 class App(customtkinter.CTk, AsyncCTk):
 
     def __init__(self):
         super().__init__()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
-        self.reset_button = None
-        self.textbox_outer_frame = None
         self.font = ("Roboto",21, "bold")
         self.title("pipupgui")
         self.iconpath = ImageTk.PhotoImage(file=resource_path("title_icon_python.png"))
         self.wm_iconbitmap()
         self.iconphoto(False, self.iconpath)
         self.rowconfigure(1, weight=1)
+
+        # self.page1_frame = customtkinter.CTkFrame(master=self, width=600, height=700)
 
         self.header_frame = customtkinter.CTkFrame(master=self, width=100, corner_radius=10, fg_color="#242424")
         self.logo_image = customtkinter.CTkImage(Image.open(resource_path("title_icon_python.png")),size=(36, 36))
@@ -267,15 +259,15 @@ class App(customtkinter.CTk, AsyncCTk):
         header_title = customtkinter.CTkLabel(self.header_frame, text="Pip Upgrade Interface", font=("Roboto",21, "bold"), anchor='w')
         header_title.grid(row=0, rowspan=1, column=1, sticky='w', padx=(16, 0), pady=(5, 8))
 
-        self.logo_image = customtkinter.CTkImage(Image.open(resource_path("github_logo.png")),size=(128, 64))
-        header_github = customtkinter.CTkButton(self.header_frame, text="", image=self.logo_image, anchor='nsew', hover_color="#242424", fg_color="transparent", command=lambda: callback(url="https://github.com/Dylgod/auto_upgrade_gui"))
+        self.github_image = customtkinter.CTkImage(Image.open(resource_path("github_logo.png")),size=(128, 64))
+        header_github = customtkinter.CTkButton(self.header_frame, text="", image=self.github_image, anchor='nsew', hover_color="#242424", fg_color="transparent", command=lambda: callback(url="https://github.com/Dylgod/auto_upgrade_gui"))
         header_github.grid(row=0,column=3, sticky='e', padx=(100, 18))#, padx=(140, 18), pady=(15, 13)
 
         self.header_frame.grid(row=0, column=1, padx=(18, 0), pady=0, sticky="nsew")
 
         self.upgrade_frame = UpgradablePackagesFrame(master=self, width=525, corner_radius=10)
         self.upgrade_frame.grid(row=1,rowspan=2, column=1, padx=(18,0), pady=0, sticky="nsew")
-        
+
         self.banned_frame = BannedPackagesFrame(master=self, width=525, corner_radius=10)
         self.banned_frame.grid(row=3, column=1, padx=(18,0), pady=(10, 0), sticky="nsew")
 
@@ -284,6 +276,11 @@ class App(customtkinter.CTk, AsyncCTk):
         self.upgrade_button = UpgradeAndResetButton(self, text="UPGRADE", command=None)
         self.upgrade_button.configure(command=self.start_upgrade_tasks)
         self.upgrade_button.grid(row=5, column=1, padx=(18, 0), pady=(10, 10), sticky="nsew")
+
+        # Result Page widgets
+        self.textbox_outer_frame = customtkinter.CTkFrame(self)
+        self.textbox = customtkinter.CTkTextbox(self.textbox_outer_frame, width=250, height=600,font=("Roboto", 14), activate_scrollbars=True)
+        self.reset_button = UpgradeAndResetButton(self, text="RESET")
 
         for row in pip_result:
             if len(row) > 30:
@@ -312,6 +309,51 @@ class App(customtkinter.CTk, AsyncCTk):
 
         self.destroy()
 
+    def reset_app(self):
+        if upgrade_subprocess is not None:
+            try:
+                upgrade_subprocess.kill()
+            except ProcessLookupError:
+                pass
+            except Exception as e:
+                print(type(e))
+
+        self.upgrade_frame.chkbox_list = []
+        self.banned_frame.banned_list = []
+        self.textbox.insert('end', "\n\nResetting client..\nRefreshing outdated and banned packages...")
+
+        for child in self.upgrade_frame.winfo_children():
+            if child.winfo_children()[0].cget('text') != "Package":
+                child.destroy()
+
+        for child in self.banned_frame.winfo_children():
+            if child.winfo_children()[0].cget('text') != "Banned Packages":
+                child.destroy()
+
+        pip_result = determine_pip_list()
+
+        for row in pip_result:
+            if len(row) > 30:
+                name, version, latest, type = process_pip_result(row)
+            else:
+                continue
+            if name not in startup_banlist:
+                self.upgrade_frame.add_package(name, version, latest, type)
+            else:
+                self.banned_frame.add_package(name, version, latest, type)
+
+        self.textbox_outer_frame.grid_forget()
+        self.reset_button.grid_forget()
+
+        self.header_frame.grid(row=0, column=1, padx=(18, 0), pady=0, sticky="nsew")
+        self.upgrade_frame.grid(row=1,rowspan=2, column=1, padx=(18,0), pady=0, sticky="nsew")
+        self.banned_frame.grid(row=3, column=1, padx=(18,0), pady=(10, 0), sticky="nsew")
+        self.upgrade_button.grid(row=5, column=1, padx=(18, 0), pady=(10, 10), sticky="nsew")
+        self.textbox.delete(0.0, 'end')
+
+    def load_pack_select_scrn(self):
+        ...
+
     def load_upgrade_scrn(self):
         self.header_frame.grid_forget()
         self.upgrade_frame.grid_forget()
@@ -321,19 +363,11 @@ class App(customtkinter.CTk, AsyncCTk):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        self.textbox_outer_frame = customtkinter.CTkFrame(self)
         self.textbox_outer_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
         self.textbox_outer_frame.grid_columnconfigure(0, weight=1)
-        height = self.textbox_outer_frame.winfo_height()
-
-        textbox = customtkinter.CTkTextbox(self.textbox_outer_frame, width=250, height=600,font=("Roboto", 14), activate_scrollbars=True)
-        textbox.pack(expand=True, fill='both')
-
-        self.reset_button = UpgradeAndResetButton(self, text="RESET")
-        self.reset_button.configure(command=stop)
+        self.textbox.pack(expand=True, fill='both')
+        self.reset_button.configure(command=self.reset_app)
         self.reset_button.grid(row=1, column=0, padx=(10, 10), pady=(10, 10), sticky="nsew")
-
-        return textbox
 
     @async_handler
     async def start_upgrade_tasks(self):
@@ -344,7 +378,8 @@ class App(customtkinter.CTk, AsyncCTk):
         if len(self.upgrade_frame.chkbox_list) > 0:
             for pack in self.upgrade_frame.chkbox_list:
 
-                cmd = f"pip install {pack} --upgrade" # replace me with the right command when done.
+                cmd = "pip list"
+                # cmd = f"pip install {pack} --upgrade" # replace me with the right command when done.
                 upgrade_subprocess = await asyncio.create_subprocess_shell(
                     cmd,
                     stdout=asyncio.subprocess.PIPE,
@@ -359,11 +394,11 @@ class App(customtkinter.CTk, AsyncCTk):
 
                     if stdout in done:
                         result_text = stdout.result().decode(console_encoding)
-                        textbox.insert("end", result_text)
+                        self.textbox.insert("end", result_text)
 
                     if stderr in done:
                         result_text = stderr.result().decode(console_encoding)
-                        textbox.insert("end", result_text, "red_text")
+                        self.textbox.insert("end", result_text, "red_text")
 
                     for item in pending:
                         item.cancel()
@@ -371,9 +406,9 @@ class App(customtkinter.CTk, AsyncCTk):
                 upgrade_subprocess = None
 
         if len(self.banned_frame.banned_list)>0:
-            textbox.insert("end", "\nBanned Packages:\n----------------\n")
+            self.textbox.insert("end", "\nBanned Packages:\n----------------\n")
             for pack in self.banned_frame.banned_list:
-                textbox.insert("end", pack)
+                self.textbox.insert("end", pack)
 
     def create_frame_channel(self, upgradablepackagesframe, bannedpackagesframe):
         """
