@@ -206,7 +206,7 @@ def set_window_default_settings(master):
     app_y = (monitor_height / 2) - (app_height / 2)
 
     master.geometry(f'{app_width}x{app_height}+{int(app_x)}+{int(app_y)}')
-    master.resizable(False, False)
+    # master.resizable(False, False)
 
 def determine_pip_list():
     unprocessed_pip_rows = []
@@ -250,37 +250,38 @@ class App(customtkinter.CTk, AsyncCTk):
         self.iconphoto(False, self.iconpath)
         self.rowconfigure(1, weight=1)
 
-        # self.page1_frame = customtkinter.CTkFrame(master=self, width=600, height=700)
+        self.page1_frame = customtkinter.CTkFrame(master=self, width=600, height=700, fg_color="#242424")
 
-        self.header_frame = customtkinter.CTkFrame(master=self, width=100, corner_radius=10, fg_color="#242424")
+        self.header_frame = customtkinter.CTkFrame(master=self.page1_frame, width=100, corner_radius=10, fg_color="#242424")
         self.logo_image = customtkinter.CTkImage(Image.open(resource_path("title_icon_python.png")),size=(36, 36))
         header_logo = customtkinter.CTkLabel(self.header_frame, text="", image=self.logo_image, anchor='w')
-        header_logo.grid(row=0, rowspan=2, column=0, sticky='w', padx=(18, 0), pady=(5, 10))
+        header_logo.grid(row=0, rowspan=2, column=0, sticky='w', padx=(18, 0), pady=(0, 10))
         header_title = customtkinter.CTkLabel(self.header_frame, text="Pip Upgrade Interface", font=("Roboto",21, "bold"), anchor='w')
-        header_title.grid(row=0, rowspan=1, column=1, sticky='w', padx=(16, 0), pady=(5, 8))
+        header_title.grid(row=0, rowspan=1, column=1, sticky='w', padx=(16, 0), pady=(0, 8))
 
         self.github_image = customtkinter.CTkImage(Image.open(resource_path("github_logo.png")),size=(128, 64))
         header_github = customtkinter.CTkButton(self.header_frame, text="", image=self.github_image, anchor='nsew', hover_color="#242424", fg_color="transparent", command=lambda: callback(url="https://github.com/Dylgod/auto_upgrade_gui"))
         header_github.grid(row=0,column=3, sticky='e', padx=(100, 18))#, padx=(140, 18), pady=(15, 13)
 
-        self.header_frame.grid(row=0, column=1, padx=(18, 0), pady=0, sticky="nsew")
+        self.header_frame.pack(side='top', fill='x')
 
-        self.upgrade_frame = UpgradablePackagesFrame(master=self, width=525, corner_radius=10)
-        self.upgrade_frame.grid(row=1,rowspan=2, column=1, padx=(18,0), pady=0, sticky="nsew")
+        self.upgrade_frame = UpgradablePackagesFrame(master=self.page1_frame, height=275, width=525, corner_radius=10)
+        self.upgrade_frame.pack(side='top', fill='x')
 
-        self.banned_frame = BannedPackagesFrame(master=self, width=525, corner_radius=10)
-        self.banned_frame.grid(row=3, column=1, padx=(18,0), pady=(10, 0), sticky="nsew")
+        self.banned_frame = BannedPackagesFrame(master=self.page1_frame, height=150, width=525, corner_radius=10)
+        self.banned_frame.pack(side='top', fill='both', pady=(10,0))
 
         self.create_frame_channel(self.upgrade_frame, self.banned_frame)
 
-        self.upgrade_button = UpgradeAndResetButton(self, text="UPGRADE", command=None)
-        self.upgrade_button.configure(command=self.start_upgrade_tasks)
-        self.upgrade_button.grid(row=5, column=1, padx=(18, 0), pady=(10, 10), sticky="nsew")
+        self.upgrade_button = UpgradeAndResetButton(self.page1_frame, text="UPGRADE", command=None)
+        self.upgrade_button.configure(command=self.start_upgrade_tasks, height=65)
+        self.upgrade_button.pack(side='bottom', fill='both', pady=(5, 5))
 
         # Result Page widgets
-        self.textbox_outer_frame = customtkinter.CTkFrame(self)
-        self.textbox = customtkinter.CTkTextbox(self.textbox_outer_frame, width=250, height=600,font=("Roboto", 14), activate_scrollbars=True)
-        self.reset_button = UpgradeAndResetButton(self, text="RESET")
+        self.page2_frame = customtkinter.CTkFrame(master=self, width=600, height=700, fg_color="#242424")
+        self.textbox_outer_frame = customtkinter.CTkFrame(self.page2_frame, width=600)
+        self.textbox = customtkinter.CTkTextbox(self.textbox_outer_frame, width=600, height=600,font=("Roboto", 14), activate_scrollbars=True)
+        self.reset_button = UpgradeAndResetButton(self.page2_frame, text="RESET")
 
         for row in pip_result:
             if len(row) > 30:
@@ -291,6 +292,8 @@ class App(customtkinter.CTk, AsyncCTk):
                 self.upgrade_frame.add_package(name, version, latest, type)
             else:
                 self.banned_frame.add_package(name, version, latest, type)
+
+        self.page1_frame.pack(expand=True, fill='both', padx=20, pady=(10,10))
 
 
     @async_handler
@@ -342,32 +345,25 @@ class App(customtkinter.CTk, AsyncCTk):
             else:
                 self.banned_frame.add_package(name, version, latest, type)
 
-        self.textbox_outer_frame.grid_forget()
-        self.reset_button.grid_forget()
+        self.page2_frame.pack_forget()
+        self.page1_frame.pack(expand=True, fill='both', padx=20, pady=(10,10))
 
-        self.header_frame.grid(row=0, column=1, padx=(18, 0), pady=0, sticky="nsew")
-        self.upgrade_frame.grid(row=1,rowspan=2, column=1, padx=(18,0), pady=0, sticky="nsew")
-        self.banned_frame.grid(row=3, column=1, padx=(18,0), pady=(10, 0), sticky="nsew")
-        self.upgrade_button.grid(row=5, column=1, padx=(18, 0), pady=(10, 10), sticky="nsew")
+
         self.textbox.delete(0.0, 'end')
 
     def load_pack_select_scrn(self):
         ...
 
     def load_upgrade_scrn(self):
-        self.header_frame.grid_forget()
-        self.upgrade_frame.grid_forget()
-        self.banned_frame.grid_forget()
-        self.upgrade_button.grid_forget()
+        self.page1_frame.pack_forget()
 
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=1)
-
-        self.textbox_outer_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
-        self.textbox_outer_frame.grid_columnconfigure(0, weight=1)
+        self.textbox_outer_frame.pack(side='top', expand=True, fill='both')
         self.textbox.pack(expand=True, fill='both')
-        self.reset_button.configure(command=self.reset_app)
-        self.reset_button.grid(row=1, column=0, padx=(10, 10), pady=(10, 10), sticky="nsew")
+        self.reset_button.configure(command=self.reset_app, height=65)
+        self.reset_button.pack(side='bottom', fill='both', pady=(15, 5))
+        self.page2_frame.pack(expand=True, fill='both', padx=20, pady=(10,10))
+
+
 
     @async_handler
     async def start_upgrade_tasks(self):
