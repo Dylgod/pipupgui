@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import customtkinter
 from PIL import ImageTk
 from PIL import Image
@@ -30,26 +31,10 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
-def search_str(file_path, word):
-    try:
-        if os.path.exists(file_path) == False:
-            with open(file_path, 'a'): pass
-    except PermissionError:
-        return "Permission Error when writing to banned list"
-
-    with open(file_path, 'r') as file:
-        # read all content of a file
-        content = file.read()
-        # check if string present in a file
-        if word in content:
-            return True
-        else:
-            return False
-
 def callback(url):
     webbrowser.open_new(url)
 
-def unban_packs_from_file(file_path, list):
+def on_startup_ban_list(file_path):
     try:
         if os.path.exists(file_path) == False:
             with open(file_path, 'a'): pass
@@ -57,15 +42,25 @@ def unban_packs_from_file(file_path, list):
     except PermissionError:
         return "Permission Error when writing to banned list"
 
+    b_list = []
     with open(file_path, 'r') as file:
-        content = file.readlines()
-        for line in reversed(content):
-            for word in list:
-                if line == word:
-                    content.pop(content.index(line))
+        r = file.read()
+        b_list = json.loads(r)
 
+    return b_list
+
+def ban_packs(file_path, pack_list):
+    try:
+        if os.path.exists(file_path) == False:
+            with open(file_path, 'a'): pass
+            return
+    except PermissionError:
+        return "Permission Error when writing to banned list"
+
+    banned_list_write_to_file = json.dumps(pack_list)
     with open(file_path, 'w') as file:
-        file.writelines(content)
+        file.write(banned_list_write_to_file)
+
 
 class UpgradeAndResetButton(customtkinter.CTkButton):
     def __init__(self, master, command=None, text="UPGRADE", **kwargs):
@@ -296,7 +291,10 @@ class App(customtkinter.CTk, AsyncCTk):
         #         name, version, latest, type = process_pip_result(row)
         #     else:
         #         continue
-        #     self.upgrade_frame.add_package(name, version, latest, type)
+        #     if name not in startup_banlist:
+        #         self.upgrade_frame.add_package(name, version, latest, type)
+        #     else:
+        #         self.banned_frame.add_package(name, version, latest, type)
 
         #FOR TESTING
         self.upgrade_frame.add_package('name', '12.1', '12.3', 'wheel')
@@ -346,17 +344,11 @@ class App(customtkinter.CTk, AsyncCTk):
         global upgrade_subprocess
         textbox = self.load_upgrade_scrn()
 
-        for pack in self.banned_frame.banned_list:
-            if not search_str(banned_list_file_path, pack):
-                with open(banned_list_file_path, 'a') as bl:
-                    bl.write(pack)
+        ban_packs(banned_list_file_path, self.banned_frame.banned_list)
 
-        unban_container = []
         for pack in self.upgrade_frame.chkbox_list:
 
-            unban_container.append(pack+"\n")
-
-            cmd = f"pip list"
+            cmd = f"pip list" # replace me with the right command when done.
             upgrade_subprocess = await asyncio.create_subprocess_shell(
                 cmd,
                 stdout=asyncio.subprocess.PIPE,
@@ -380,10 +372,7 @@ class App(customtkinter.CTk, AsyncCTk):
                 for item in pending:
                     item.cancel()
 
-            textbox.insert("end", f"Finished with code {upgrade_subprocess.returncode}\n\n")
             ping_subprocess = None
-
-        unban_packs_from_file(banned_list_file_path, unban_container)
 
     def create_frame_channel(self, upgradablepackagesframe, bannedpackagesframe):
         """
@@ -404,7 +393,8 @@ if __name__ == "__main__":
             console_encoding = f"cp{console_code_page}"
 
     customtkinter.set_appearance_mode("dark")
-    # pip_result = determine_pip_list()
+    startup_banlist = on_startup_ban_list(banned_list_file_path)
+    pip_result = determine_pip_list()
     app = App()
     set_window_default_settings(app)
     try:
