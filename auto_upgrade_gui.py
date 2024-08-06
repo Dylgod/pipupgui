@@ -74,7 +74,6 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
         super().__init__(master, **kwargs, fg_color="#191a1a")
         self.grid_columnconfigure(0, weight=1)
         self.command = command
-        self.banned_list = []
         self.button_list = []
         self.font = ("Roboto",14, "bold")
         self.upgrade_frame = None
@@ -95,7 +94,10 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
 
         def unban_package(self, name_widget, banned_p_current, banned_p_latest, banned_p_type):
             p_name = name_widget.cget('text')
-            self.banned_list.remove(p_name)
+            try:
+                banned_list.remove(p_name)
+            except ValueError:
+                pass
             self.upgrade_frame.add_package(package_name=p_name, version_current=banned_p_current, version_latest=banned_p_latest, package_type=banned_p_type)
             borderframe.grid_forget()
 
@@ -118,12 +120,12 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
                                          command=lambda: unban_package(self, banned_p_lbl, banned_p_current, banned_p_latest, banned_p_type))
         button.grid(row=0, column=0, padx=7, pady=7, sticky="w")
 
-        borderframe.grid(row=len(self.banned_list)+1, column=0, pady=(0, 10), sticky="w")
+        borderframe.grid(row=len(banned_list)+1, column=0, pady=(0, 10), sticky="w")
         borderframe.grid_propagate(False)
         borderframe.configure(width=525, height=40)
 
         # Wont need later when we destroy the frame itself and not the widgets within
-        self.banned_list.append(package_name)
+        banned_list.append(package_name)
         self.button_list.append(button)
 
 
@@ -134,7 +136,6 @@ class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
         self.grid_columnconfigure(0, weight=0)
 
         self.command = command
-        self.chkbox_list = []
         self.font = ("Roboto",14, "bold")
         self.banned_frame = None
 
@@ -160,13 +161,31 @@ class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
     def add_package(self, package_name, version_current, version_latest, package_type):
 
         def ban_package(self, name_widget, v_current_widget, v_latest_widget, type_widget):
-            self.chkbox_list.remove(name_widget.cget("text"))
+            try:
+                upgrade_list.remove(name_widget.cget("text"))
+            except ValueError:
+                pass
+
             p_name = name_widget.cget('text')
             p_current = v_current_widget.cget('text')
             p_latest = v_latest_widget.cget('text')
             p_type = type_widget.cget('text')
             self.banned_frame.add_package(package_name=p_name, version_current=p_current, version_latest=p_latest, package_type=p_type)
             borderframe.grid_forget()
+
+        def checkbox_event_callback(widget):
+            if widget.get() == 1:
+                try:
+                    if widget.cget("text") not in upgrade_list:
+                        upgrade_list.append(chkbox.cget("text"))
+                except Exception:
+                    pass
+            elif widget.get() == 0:
+                try:
+                    upgrade_list.remove(chkbox.cget("text"))
+                except ValueError:
+                    pass
+
 
         borderframe = customtkinter.CTkFrame(self, border_color='dark gray', fg_color="#252626", border_width=1)
         borderframe.grid_columnconfigure(0, weight=1)
@@ -175,6 +194,7 @@ class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
 
         upgrade_chkbox_var = customtkinter.IntVar(value=1)
         chkbox = customtkinter.CTkCheckBox(borderframe, text=package_name, width=300, variable=upgrade_chkbox_var)
+        chkbox.configure(command=lambda: checkbox_event_callback(chkbox))
         p_ver_current_lbl = customtkinter.CTkLabel(borderframe, text=version_current, anchor="e", width=80)
         p_ver_latest_lbl = customtkinter.CTkLabel(borderframe, text=version_latest, anchor="e", width=80)
         p_type_lbl = customtkinter.CTkLabel(borderframe, text=package_type, anchor="e", width=80)
@@ -187,12 +207,11 @@ class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
         p_type_lbl.grid(row=0, column=3, padx=(0, 10), pady=7, sticky="e")
         ban_button.grid(row=0, column=4, padx=7, pady=7, sticky="e")
 
-        borderframe.grid(row=len(self.chkbox_list)+1, column=0, pady=(0, 10), sticky="ew")
+        borderframe.grid(row=len(upgrade_list)+1, column=0, pady=(0, 10), sticky="ew")
         borderframe.grid_propagate(False)
         borderframe.configure(width=525, height=40)
 
-        # Wont need later when we destroy the frame itself and not the widgets within
-        self.chkbox_list.append(chkbox.cget("text"))
+        upgrade_list.append(chkbox.cget("text"))
 
 
 def close_signout(master):
@@ -238,7 +257,7 @@ def process_pip_result(result_row):
 
     return parts[0], parts[1], parts[2], parts[3]
 
-async def call_reset_event_text( widget: customtkinter.CTkTextbox):
+async def call_reset_event_text( widget: customtkinter.CTkTextbox): # Not working currently
     widget.configure(state='normal')
     old_text = widget.get(0.0, 'end')
     new_text = old_text + "\n\nResetting client..\nRefreshing outdated and banned packages..."
@@ -318,6 +337,10 @@ class App(customtkinter.CTk, AsyncCTk):
 
     @async_handler
     async def reset_app(self):
+        global upgrade_list
+        global banned_list
+        upgrade_list = []
+        banned_list = []
 
         if upgrade_subprocess is not None:
             try:
@@ -325,10 +348,8 @@ class App(customtkinter.CTk, AsyncCTk):
             except ProcessLookupError:
                 pass
             except Exception as e:
-                print(type(e))
+                print("line 351", type(e))
 
-        self.upgrade_frame.chkbox_list = []
-        self.banned_frame.banned_list = []
 
         for child in self.upgrade_frame.winfo_children():
             if child.winfo_children()[0].cget('text') != "Package":
@@ -364,7 +385,7 @@ class App(customtkinter.CTk, AsyncCTk):
 
         self.textbox_outer_frame.pack(side='top', expand=True, fill='both')
         self.textbox.pack(expand=True, fill='both')
-        self.reset_button.configure(command=self.reset_app, height=65)
+        self.reset_button.configure(command=self.reset_app, height=65, state="disabled")
         self.reset_button.pack(side='bottom', fill='both', pady=(15, 5))
         self.page2_frame.pack(expand=True, fill='both', padx=20, pady=(10,10))
 
@@ -373,9 +394,9 @@ class App(customtkinter.CTk, AsyncCTk):
         global upgrade_subprocess
         self.load_upgrade_scrn()
 
-        ban_packs(banned_list_file_path, self.banned_frame.banned_list)
-        if len(self.upgrade_frame.chkbox_list) > 0:
-            for pack in self.upgrade_frame.chkbox_list:
+        ban_packs(banned_list_file_path, banned_list)
+        if len(upgrade_list) > 0:
+            for pack in upgrade_list:
 
                 if pack == 'pip':
                     cmd = 'python.exe -m pip install --upgrade pip'
@@ -406,15 +427,17 @@ class App(customtkinter.CTk, AsyncCTk):
                         item.cancel()
 
                 upgrade_subprocess = None
-        elif len(self.upgrade_frame.chkbox_list) == 0:
+
+        elif len(upgrade_list) == 0:
             self.textbox.insert("end", "You are up to date!\nYou may close this window.\n")
 
-        if len(self.banned_frame.banned_list)>0:
+        if len(banned_list)>0:
             self.textbox.insert("end", "\nBanned Packages:\n----------------\n")
-            for pack in self.banned_frame.banned_list:
+            for pack in banned_list:
                 self.textbox.insert("end", pack+'\n')
 
         self.textbox.insert("end", "\nProcess Complete.")
+        self.reset_button.configure(state="normal")
 
     def create_frame_channel(self, upgradablepackagesframe, bannedpackagesframe):
         """
@@ -433,14 +456,17 @@ if __name__ == "__main__":
         console_code_page = windll.kernel32.GetConsoleOutputCP()
         if console_code_page != 65001:
             console_encoding = f"cp{console_code_page}"
-
+            
     customtkinter.set_appearance_mode("dark")
-
+    
+    upgrade_list = []
+    banned_list = []
     startup_banlist = on_startup_ban_list(banned_list_file_path)
-
     pip_result = determine_pip_list()
+    
     app = App()
     set_window_default_settings(app)
+    
     try:
         app.async_mainloop()
     except asyncio.CancelledError:
