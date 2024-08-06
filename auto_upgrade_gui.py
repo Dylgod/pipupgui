@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 from json import loads, dumps, JSONDecodeError
 import customtkinter
 from PIL import ImageTk
@@ -37,18 +36,20 @@ def callback(url):
 
 def on_startup_ban_list(file_path):
     try:
-        if os.path.exists(file_path) == False:
-            with open(file_path, 'a'): pass
-            return
+        if not os.path.exists(file_path):
+            with open(file_path, 'w') as f:
+                f.write('[]')
+            return []
     except PermissionError:
-        return "Permission Error when writing to banned list"
+        print("Permission Error when writing to banned list")
+        return []
 
-    b_list = []
-    with open(file_path, 'r') as file:
-        r = file.read()
-        b_list = loads(r)
-
-    return b_list
+    try:
+        with open(file_path, 'r') as file:
+            b_list = loads(file.read())
+        return b_list if isinstance(b_list, list) else []
+    except JSONDecodeError:
+        return []
 
 def ban_packs(file_path, pack_list):
     try:
@@ -125,7 +126,7 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
         self.banned_list.append(package_name)
         self.button_list.append(button)
 
-        
+
 class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
 
     def __init__(self, master, command=None, **kwargs):
@@ -138,7 +139,7 @@ class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
         self.banned_frame = None
 
         self.placeholder = customtkinter.CTkFrame(self, fg_color="#252626")
-        
+
         placeholder_name_lbl = customtkinter.CTkLabel(self.placeholder, text="Package", font=self.font, anchor="w", width=200)
         placeholder_ver_current_lbl = customtkinter.CTkLabel(self.placeholder, text="Current", font=self.font, anchor="w", width=80)
         placeholder_ver_latest_lbl = customtkinter.CTkLabel(self.placeholder, text="Latest", font=self.font, anchor="w", width=70)
@@ -178,7 +179,7 @@ class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
         p_ver_latest_lbl = customtkinter.CTkLabel(borderframe, text=version_latest, anchor="e", width=80)
         p_type_lbl = customtkinter.CTkLabel(borderframe, text=package_type, anchor="e", width=80)
         ban_button = customtkinter.CTkButton(borderframe, text="Ban", fg_color="#991b1b", hover_color="#ff4d52", width=50, height=24,
-                                         command=lambda: ban_package(self, chkbox, p_ver_current_lbl, p_ver_latest_lbl, p_type_lbl))
+                                             command=lambda: ban_package(self, chkbox, p_ver_current_lbl, p_ver_latest_lbl, p_type_lbl))
 
         chkbox.grid(row=0, column=0, padx=(7, 0), pady=7, sticky="w")
         p_ver_current_lbl.grid(row=0, column=1, pady=7, sticky="e")
@@ -210,7 +211,7 @@ def set_window_default_settings(master):
     app_y = (monitor_height / 2) - (app_height / 2)
 
     master.geometry(f'{app_width}x{app_height}+{int(app_x)}+{int(app_y)}')
-    # master.resizable(False, False)
+    master.resizable(False, False)
 
 def determine_pip_list():
     unprocessed_pip_rows = []
@@ -222,10 +223,6 @@ def determine_pip_list():
 
     for line in package_query.stdout.read().decode().split("\n")[2:]:
         unprocessed_pip_rows.append(line.strip("\r"))
-
-    if len(unprocessed_pip_rows) == 0:
-        print("Nothing to upgrade!")
-        sys.exit(0)
 
     return unprocessed_pip_rows
 
@@ -297,7 +294,7 @@ class App(customtkinter.CTk, AsyncCTk):
                 name, version, latest, type = process_pip_result(row)
             else:
                 continue
-            if name not in startup_banlist:
+            if startup_banlist is not None and name not in startup_banlist:
                 self.upgrade_frame.add_package(name, version, latest, type)
             else:
                 self.banned_frame.add_package(name, version, latest, type)
@@ -349,6 +346,7 @@ class App(customtkinter.CTk, AsyncCTk):
         self.textbox.delete(0.0, 'end')
 
     async def reset_pip_packages(self):
+        startup_banlist = on_startup_ban_list(banned_list_file_path)
         pip_result = determine_pip_list()
 
         for row in pip_result:
@@ -379,7 +377,11 @@ class App(customtkinter.CTk, AsyncCTk):
         if len(self.upgrade_frame.chkbox_list) > 0:
             for pack in self.upgrade_frame.chkbox_list:
 
-                cmd = f"pip install {pack} --upgrade"
+                if pack == 'pip':
+                    cmd = 'python.exe -m pip install --upgrade pip'
+                else:
+                    cmd = f"pip install {pack} --upgrade"
+
                 upgrade_subprocess = await asyncio.create_subprocess_shell(
                     cmd,
                     stdout=asyncio.subprocess.PIPE,
@@ -404,11 +406,15 @@ class App(customtkinter.CTk, AsyncCTk):
                         item.cancel()
 
                 upgrade_subprocess = None
+        elif len(self.upgrade_frame.chkbox_list) == 0:
+            self.textbox.insert("end", "You are up to date!\nYou may close this window.\n")
 
         if len(self.banned_frame.banned_list)>0:
             self.textbox.insert("end", "\nBanned Packages:\n----------------\n")
             for pack in self.banned_frame.banned_list:
                 self.textbox.insert("end", pack+'\n')
+
+        self.textbox.insert("end", "\nProcess Complete.")
 
     def create_frame_channel(self, upgradablepackagesframe, bannedpackagesframe):
         """
@@ -429,10 +435,9 @@ if __name__ == "__main__":
             console_encoding = f"cp{console_code_page}"
 
     customtkinter.set_appearance_mode("dark")
-    try:
-        startup_banlist = on_startup_ban_list(banned_list_file_path)
-    except JSONDecodeError:
-        startup_banlist = []
+
+    startup_banlist = on_startup_ban_list(banned_list_file_path)
+
     pip_result = determine_pip_list()
     app = App()
     set_window_default_settings(app)
