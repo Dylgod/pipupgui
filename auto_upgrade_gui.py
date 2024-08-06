@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from json import loads, dumps, JSONDecodeError
 import customtkinter
 from PIL import ImageTk
@@ -107,10 +108,13 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
         banned_p_type = package_type
 
         banned_p_lbl = customtkinter.CTkLabel(borderframe, text=package_name, anchor="w", width=100)
+        banned_p_lbl.grid(row=0, column=0, padx=(65,0), pady=7, sticky="w")
+
+        banned_p_v_lbl = customtkinter.CTkLabel(borderframe, text=version_current, anchor="e", width=100)
+        banned_p_v_lbl.grid(row=0, column=1, padx=(0,20), pady=7, sticky="w")
+
         button = customtkinter.CTkButton(borderframe, text="Unban", fg_color="#088c08", hover_color="#5da763", width=50, height=24,
                                          command=lambda: unban_package(self, banned_p_lbl, banned_p_current, banned_p_latest, banned_p_type))
-
-        banned_p_lbl.grid(row=0, column=0, padx=(65,0), pady=7, sticky="w")
         button.grid(row=0, column=0, padx=7, pady=7, sticky="w")
 
         borderframe.grid(row=len(self.banned_list)+1, column=0, pady=(0, 10), sticky="w")
@@ -237,6 +241,11 @@ def process_pip_result(result_row):
 
     return parts[0], parts[1], parts[2], parts[3]
 
+async def call_reset_event_text( widget: customtkinter.CTkTextbox):
+    widget.configure(state='normal')
+    old_text = widget.get(0.0, 'end')
+    new_text = old_text + "\n\nResetting client..\nRefreshing outdated and banned packages..."
+    widget.configure(state='disabled')
 
 class App(customtkinter.CTk, AsyncCTk):
 
@@ -256,8 +265,8 @@ class App(customtkinter.CTk, AsyncCTk):
         self.logo_image = customtkinter.CTkImage(Image.open(resource_path("title_icon_python.png")),size=(36, 36))
         header_logo = customtkinter.CTkLabel(self.header_frame, text="", image=self.logo_image, anchor='w')
         header_logo.grid(row=0, rowspan=2, column=0, sticky='w', padx=(18, 0), pady=(0, 10))
-        header_title = customtkinter.CTkLabel(self.header_frame, text="Pip Upgrade Interface", font=("Roboto",21, "bold"), anchor='w')
-        header_title.grid(row=0, rowspan=1, column=1, sticky='w', padx=(16, 0), pady=(0, 8))
+        header_title = customtkinter.CTkLabel(self.header_frame, text="Pip Upgrade GUI", font=("Roboto",21, "bold"), anchor='w')
+        header_title.grid(row=0, rowspan=1, column=1, sticky='w', padx=(16, 55), pady=(0, 8))
 
         self.github_image = customtkinter.CTkImage(Image.open(resource_path("github_logo.png")),size=(128, 64))
         header_github = customtkinter.CTkButton(self.header_frame, text="", image=self.github_image, anchor='nsew', hover_color="#242424", fg_color="transparent", command=lambda: callback(url="https://github.com/Dylgod/auto_upgrade_gui"))
@@ -295,10 +304,8 @@ class App(customtkinter.CTk, AsyncCTk):
 
         self.page1_frame.pack(expand=True, fill='both', padx=20, pady=(10,10))
 
-
     @async_handler
     async def on_close(self):
-        # self.save_config()
         await asyncio.sleep(0.5)
 
         # Safely terminate all active asynchronous operations
@@ -308,11 +315,13 @@ class App(customtkinter.CTk, AsyncCTk):
             try:
                 await task
             except asyncio.CancelledError:
-                pass  # Handles exceptions that occur when an asynchronous operation is canceled
+                pass
 
         self.destroy()
 
-    def reset_app(self):
+    @async_handler
+    async def reset_app(self):
+
         if upgrade_subprocess is not None:
             try:
                 upgrade_subprocess.kill()
@@ -323,7 +332,6 @@ class App(customtkinter.CTk, AsyncCTk):
 
         self.upgrade_frame.chkbox_list = []
         self.banned_frame.banned_list = []
-        self.textbox.insert('end', "\n\nResetting client..\nRefreshing outdated and banned packages...")
 
         for child in self.upgrade_frame.winfo_children():
             if child.winfo_children()[0].cget('text') != "Package":
@@ -333,6 +341,14 @@ class App(customtkinter.CTk, AsyncCTk):
             if child.winfo_children()[0].cget('text') != "Banned Packages":
                 child.destroy()
 
+        await self.reset_pip_packages()
+
+        self.page2_frame.pack_forget()
+        self.page1_frame.pack(expand=True, fill='both', padx=20, pady=(10,10))
+
+        self.textbox.delete(0.0, 'end')
+
+    async def reset_pip_packages(self):
         pip_result = determine_pip_list()
 
         for row in pip_result:
@@ -345,15 +361,6 @@ class App(customtkinter.CTk, AsyncCTk):
             else:
                 self.banned_frame.add_package(name, version, latest, type)
 
-        self.page2_frame.pack_forget()
-        self.page1_frame.pack(expand=True, fill='both', padx=20, pady=(10,10))
-
-
-        self.textbox.delete(0.0, 'end')
-
-    def load_pack_select_scrn(self):
-        ...
-
     def load_upgrade_scrn(self):
         self.page1_frame.pack_forget()
 
@@ -363,19 +370,16 @@ class App(customtkinter.CTk, AsyncCTk):
         self.reset_button.pack(side='bottom', fill='both', pady=(15, 5))
         self.page2_frame.pack(expand=True, fill='both', padx=20, pady=(10,10))
 
-
-
     @async_handler
     async def start_upgrade_tasks(self):
         global upgrade_subprocess
-        textbox = self.load_upgrade_scrn()
+        self.load_upgrade_scrn()
 
         ban_packs(banned_list_file_path, self.banned_frame.banned_list)
         if len(self.upgrade_frame.chkbox_list) > 0:
             for pack in self.upgrade_frame.chkbox_list:
 
-                cmd = "pip list"
-                # cmd = f"pip install {pack} --upgrade" # replace me with the right command when done.
+                cmd = f"pip install {pack} --upgrade"
                 upgrade_subprocess = await asyncio.create_subprocess_shell(
                     cmd,
                     stdout=asyncio.subprocess.PIPE,
@@ -404,7 +408,7 @@ class App(customtkinter.CTk, AsyncCTk):
         if len(self.banned_frame.banned_list)>0:
             self.textbox.insert("end", "\nBanned Packages:\n----------------\n")
             for pack in self.banned_frame.banned_list:
-                self.textbox.insert("end", pack)
+                self.textbox.insert("end", pack+'\n')
 
     def create_frame_channel(self, upgradablepackagesframe, bannedpackagesframe):
         """
