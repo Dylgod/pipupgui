@@ -16,6 +16,8 @@ from async_tkinter_loop.mixins import AsyncCTk
 from typing import TYPE_CHECKING
 from asyncio.subprocess import Process
 
+__version__ = "0.5.0"
+
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller"""
     try:
