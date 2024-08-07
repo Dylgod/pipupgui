@@ -14,13 +14,7 @@ import asyncio
 from async_tkinter_loop import async_handler
 from async_tkinter_loop.mixins import AsyncCTk
 from typing import TYPE_CHECKING
-
-
-if TYPE_CHECKING:
-    from asyncio.subprocess import Process
-
-banned_list_file_path = os.path.join(os.getcwd(), "pipupgui_banned.txt")
-
+from asyncio.subprocess import Process
 
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller"""
@@ -170,7 +164,7 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
         borderframe.configure(width=525, height=40)
 
         # Wont need later when we destroy the frame itself and not the widgets within
-        banned_list.append(package_name)
+        banned_list.append(f"{package_name}")
         self.button_list.append(button)
 
 
@@ -355,10 +349,42 @@ async def call_reset_event_text(
     widget.insert('end', new_text)
     widget.configure(state="disabled")
 
+def main():
+    global banned_list_file_path
+    global console_encoding
+    global upgrade_list
+    global banned_list
+    global startup_banlist
+    global pip_result
+
+    banned_list_file_path = os.path.join(os.getcwd(), "pipupgui_banned.txt")
+    console_encoding = "utf-8"
+    if platform.system() == "Windows":
+        from ctypes import windll
+        console_code_page = windll.kernel32.GetConsoleOutputCP()
+        if console_code_page != 65001:
+            console_encoding = f"cp{console_code_page}"
+
+    customtkinter.set_appearance_mode("dark")
+
+    upgrade_list = []
+    banned_list = []
+    startup_banlist = on_startup_ban_list(banned_list_file_path)
+    pip_result = determine_pip_list()
+
+    app = App()
+    set_window_default_settings(app)
+
+    try:
+        app.async_mainloop()
+    except asyncio.CancelledError:
+        pass
+
 
 class App(customtkinter.CTk, AsyncCTk):
     def __init__(self):
         super().__init__()
+        self.upgrade_subprocess: Process | None = None
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.font = ("Roboto", 21, "bold")
         self.title("pipupgui")
@@ -444,11 +470,11 @@ class App(customtkinter.CTk, AsyncCTk):
         self.reset_button = UpgradeAndResetButton(self.page2_frame, text="RESET")
 
         for row in pip_result:
-            if len(row) > 30:
+            if len(row) > 5:
                 name, version, latest, type = process_pip_result(row)
             else:
                 continue
-            if startup_banlist is not None and name not in startup_banlist:
+            if name not in startup_banlist:
                 self.upgrade_frame.add_package(name, version, latest, type)
             else:
                 self.banned_frame.add_package(name, version, latest, type)
@@ -479,9 +505,9 @@ class App(customtkinter.CTk, AsyncCTk):
         upgrade_list = []
         banned_list = []
 
-        if upgrade_subprocess is not None:
+        if self.upgrade_subprocess is not None:
             try:
-                upgrade_subprocess.kill()
+                self.upgrade_subprocess.kill()
             except ProcessLookupError:
                 pass
             except Exception as e:
@@ -507,7 +533,7 @@ class App(customtkinter.CTk, AsyncCTk):
         pip_result = determine_pip_list()
 
         for row in pip_result:
-            if len(row) > 30:
+            if len(row) > 1:
                 name, version, latest, type = process_pip_result(row)
             else:
                 continue
@@ -527,7 +553,6 @@ class App(customtkinter.CTk, AsyncCTk):
 
     @async_handler
     async def start_upgrade_tasks(self):
-        global upgrade_subprocess
         self.load_upgrade_scrn()
 
         ban_packs(banned_list_file_path, banned_list)
@@ -538,15 +563,15 @@ class App(customtkinter.CTk, AsyncCTk):
                 else:
                     cmd = f"pip install {pack} --upgrade"
 
-                upgrade_subprocess = await asyncio.create_subprocess_shell(
+                self.upgrade_subprocess = await asyncio.create_subprocess_shell(
                     cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
 
-                while upgrade_subprocess.returncode is None:
-                    stdout = asyncio.create_task(upgrade_subprocess.stdout.readline())
-                    stderr = asyncio.create_task(upgrade_subprocess.stderr.readline())
+                while self.upgrade_subprocess.returncode is None:
+                    stdout = asyncio.create_task(self.upgrade_subprocess.stdout.readline())
+                    stderr = asyncio.create_task(self.upgrade_subprocess.stderr.readline())
 
                     done, pending = await asyncio.wait(
                         {stdout, stderr}, return_when=asyncio.FIRST_COMPLETED
@@ -563,7 +588,7 @@ class App(customtkinter.CTk, AsyncCTk):
                     for item in pending:
                         item.cancel()
 
-                upgrade_subprocess = None
+                self.upgrade_subprocess = None
 
         elif len(upgrade_list) == 0:
             self.textbox.insert(
@@ -589,26 +614,4 @@ class App(customtkinter.CTk, AsyncCTk):
 
 
 if __name__ == "__main__":
-    upgrade_subprocess: Process | None = None
-    console_encoding = "utf-8"
-    if platform.system() == "Windows":
-        from ctypes import windll
-
-        console_code_page = windll.kernel32.GetConsoleOutputCP()
-        if console_code_page != 65001:
-            console_encoding = f"cp{console_code_page}"
-
-    customtkinter.set_appearance_mode("dark")
-
-    upgrade_list = []
-    banned_list = []
-    startup_banlist = on_startup_ban_list(banned_list_file_path)
-    pip_result = determine_pip_list()
-
-    app = App()
-    set_window_default_settings(app)
-
-    try:
-        app.async_mainloop()
-    except asyncio.CancelledError:
-        pass
+    main()
