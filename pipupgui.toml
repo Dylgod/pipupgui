@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pipupgui"
+version = "0.5.0"
+description = "GUI tool for installing and managing pip packages"
+readme = "README.md"
+authors = [{ name = "Dylan Taylor", email = "dylan@shyapply.com" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+keywords = ["python","pip","package-manager","gui","development-tools"]
+dependencies = [
+    "async_tkinter_loop>=0.9.3",
+    "customtkinter>=5.2.2",
+    "Pillow>=10.4.0",
+]
+requires-python = ">=3.10"
+
+[project.urls]
+Homepage = "https://github.com/Dylgod/pipupgui"
+
+[project.scripts]
+pipupgui = "pipupgui.__main__:main"
+
+[tool.setuptools.package-data]
+pipupgui = ["*.png"]
