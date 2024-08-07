@@ -1,4 +1,4 @@
-# Pipipgui
+# Pipupgui
 A simple GUI convenience tool that gives the user control over upgrading pip packages.
 ## Features:
 Pip upgrade all - mass upgrade packages, including pip itself.
