@@ -31,7 +31,7 @@ requires-python = ">=3.10"
 Homepage = "https://github.com/Dylgod/pipupgui"
 
 [project.scripts]
-pipupgui = "pipupgui.__main__:main"
+pipupgui = "__main__:main"
 
 [tool.setuptools.package-data]
 pipupgui = ["*.png"]
