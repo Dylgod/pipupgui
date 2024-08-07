@@ -5,7 +5,8 @@ import customtkinter
 from PIL import ImageTk
 from PIL import Image
 from webbrowser import open_new
-import os, sys
+import os
+import sys
 import subprocess
 import re
 import platform
@@ -56,7 +57,7 @@ def on_startup_ban_list(file_path):
 
 def ban_packs(file_path, pack_list):
     try:
-        if os.path.exists(file_path) == False:
+        if not os.path.exists(file_path):
             with open(file_path, "a"):
                 pass
             return
@@ -114,7 +115,6 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
         self.upgrade_frame = upgradablepackagesframe
 
     def add_package(self, package_name, version_current, version_latest, package_type):
-
         def unban_package(
             self, name_widget, banned_p_current, banned_p_latest, banned_p_type
         ):
@@ -175,7 +175,6 @@ class BannedPackagesFrame(customtkinter.CTkScrollableFrame):
 
 
 class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
-
     def __init__(self, master, command=None, **kwargs):
         super().__init__(master, **kwargs, fg_color="#191a1a")
         self.grid_columnconfigure(0, weight=0)
@@ -216,7 +215,6 @@ class UpgradablePackagesFrame(customtkinter.CTkScrollableFrame):
         self.banned_frame = bannedpackagesframe
 
     def add_package(self, package_name, version_current, version_latest, package_type):
-
         def ban_package(
             self, name_widget, v_current_widget, v_latest_widget, type_widget
         ):
@@ -354,11 +352,11 @@ async def call_reset_event_text(
     new_text = (
         old_text + "\n\nResetting client..\nRefreshing outdated and banned packages..."
     )
+    widget.insert('end', new_text)
     widget.configure(state="disabled")
 
 
 class App(customtkinter.CTk, AsyncCTk):
-
     def __init__(self):
         super().__init__()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -535,7 +533,6 @@ class App(customtkinter.CTk, AsyncCTk):
         ban_packs(banned_list_file_path, banned_list)
         if len(upgrade_list) > 0:
             for pack in upgrade_list:
-
                 if pack == "pip":
                     cmd = "python.exe -m pip install --upgrade pip"
                 else:
