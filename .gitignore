@@ -1,1 +1,4 @@
 pipupgui_banned.txt
+.idea/
+build/
+dist/
