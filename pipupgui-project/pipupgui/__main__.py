@@ -15,7 +15,7 @@ from async_tkinter_loop.mixins import AsyncCTk
 from typing import TYPE_CHECKING
 from pkg_resources import resource_filename
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 if TYPE_CHECKING:
     from asyncio.subprocess import Process

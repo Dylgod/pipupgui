@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pipupgui"
-version = "0.5.0"
+version = "0.5.1"
 description = "GUI tool for installing and managing pip packages"
 readme = "README.md"
 authors = [{ name = "Dylan Taylor", email = "dylan@shyapply.com" }]
@@ -24,6 +24,7 @@ dependencies = [
     "async_tkinter_loop>=0.9.3",
     "customtkinter>=5.2.2",
     "Pillow>=10.4.0",
+    "setuptools>=71.1.0",
 ]
 requires-python = ">=3.10"
 
