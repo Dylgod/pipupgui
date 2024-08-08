@@ -34,4 +34,4 @@ Homepage = "https://github.com/Dylgod/pipupgui"
 pipupgui = "pipupgui.__main__:main"
 
 [tool.setuptools.package-data]
-pipupgui = ["title_icon_python.png", "github_logo.png"]
+pipupgui = ["../title_icon_python.png", "../github_logo.png"]
