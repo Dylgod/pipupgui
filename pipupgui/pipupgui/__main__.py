@@ -6,6 +6,7 @@ from PIL import ImageTk
 from PIL import Image
 from webbrowser import open_new
 import os
+from os.path import dirname, realpath
 import subprocess
 import re
 import platform
@@ -13,9 +14,8 @@ import asyncio
 from async_tkinter_loop import async_handler
 from async_tkinter_loop.mixins import AsyncCTk
 from typing import TYPE_CHECKING
-from pkg_resources import resource_filename
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 if TYPE_CHECKING:
     from asyncio.subprocess import Process
@@ -381,7 +381,7 @@ class App(customtkinter.CTk, AsyncCTk):
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.font = ("Roboto", 21, "bold")
         self.title("pipupgui")
-        self.iconpath = ImageTk.PhotoImage(file=resource_filename('pipupgui', '../title_icon_python.png'))
+        self.iconpath = ImageTk.PhotoImage(file=(dirname(dirname(realpath(__file__))) + r"\title_icon_python.png"))
         self.wm_iconbitmap()
         self.iconphoto(False, self.iconpath)
         self.rowconfigure(1, weight=1)
@@ -394,7 +394,7 @@ class App(customtkinter.CTk, AsyncCTk):
             master=self.page1_frame, width=100, corner_radius=10, fg_color="#242424"
         )
         self.logo_image = customtkinter.CTkImage(
-            Image.open(resource_filename('pipupgui', '../title_icon_python.png')), size=(36, 36)
+            Image.open(dirname(dirname(realpath(__file__))) + r"\title_icon_python.png"), size=(36, 36)
         )
         header_logo = customtkinter.CTkLabel(
             self.header_frame, text="", image=self.logo_image, anchor="w"
@@ -413,7 +413,7 @@ class App(customtkinter.CTk, AsyncCTk):
         )
 
         self.github_image = customtkinter.CTkImage(
-            Image.open(resource_filename('pipupgui', '../github_logo.png')), size=(128, 64)
+            Image.open(dirname(dirname(realpath(__file__))) + r"\github_logo.png"), size=(128, 64)
         )
         header_github = customtkinter.CTkButton(
             self.header_frame,
@@ -458,6 +458,8 @@ class App(customtkinter.CTk, AsyncCTk):
             width=600,
             height=600,
             font=("Roboto", 14),
+            corner_radius=10,
+            fg_color="#191a1a",
             activate_scrollbars=True,
         )
         self.reset_button = UpgradeAndResetButton(self.page2_frame, text="RESET")
