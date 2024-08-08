@@ -381,7 +381,7 @@ class App(customtkinter.CTk, AsyncCTk):
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.font = ("Roboto", 21, "bold")
         self.title("pipupgui")
-        self.iconpath = ImageTk.PhotoImage(file=resource_filename('pipupgui', 'resources/title_icon_python.png'))
+        self.iconpath = ImageTk.PhotoImage(file=resource_filename('pipupgui', './title_icon_python.png'))
         self.wm_iconbitmap()
         self.iconphoto(False, self.iconpath)
         self.rowconfigure(1, weight=1)
@@ -394,7 +394,7 @@ class App(customtkinter.CTk, AsyncCTk):
             master=self.page1_frame, width=100, corner_radius=10, fg_color="#242424"
         )
         self.logo_image = customtkinter.CTkImage(
-            Image.open(resource_filename('pipupgui', 'resources/title_icon_python.png')), size=(36, 36)
+            Image.open(resource_filename('pipupgui', './title_icon_python.png')), size=(36, 36)
         )
         header_logo = customtkinter.CTkLabel(
             self.header_frame, text="", image=self.logo_image, anchor="w"
@@ -413,7 +413,7 @@ class App(customtkinter.CTk, AsyncCTk):
         )
 
         self.github_image = customtkinter.CTkImage(
-            Image.open(resource_filename('pipupgui', 'resources/github_logo.png')), size=(128, 64)
+            Image.open(resource_filename('pipupgui', './github_logo.png')), size=(128, 64)
         )
         header_github = customtkinter.CTkButton(
             self.header_frame,
