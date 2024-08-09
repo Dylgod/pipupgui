@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from json import loads, dumps, JSONDecodeError
 import customtkinter
 from PIL import ImageTk
@@ -319,10 +320,11 @@ def determine_pip_list():
     for line in package_query.stdout.read().decode().split("\n")[2:]:
         unprocessed_pip_rows.append(line.strip("\r"))
 
-    check_self_outdated = check_pipupgui_outdated(unprocessed_pip_rows, "pipupgui")
-    if check_self_outdated != -1:
-        unprocessed_pip_rows = [unprocessed_pip_rows[check_self_outdated]]
-        return unprocessed_pip_rows
+    # Debating if self update and restart is worth it
+    # check_self_outdated = check_pipupgui_outdated(unprocessed_pip_rows, "pipupgui")
+    # if check_self_outdated != -1:
+    #     unprocessed_pip_rows = [unprocessed_pip_rows[check_self_outdated]]
+    #     return unprocessed_pip_rows
 
     return unprocessed_pip_rows
 
