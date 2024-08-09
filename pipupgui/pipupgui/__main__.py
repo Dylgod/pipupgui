@@ -14,6 +14,7 @@ import asyncio
 from async_tkinter_loop import async_handler
 from async_tkinter_loop.mixins import AsyncCTk
 from typing import TYPE_CHECKING
+from itertools import combinations
 
 __version__ = "0.5.2"
 
@@ -302,6 +303,11 @@ def set_window_default_settings(master):
 
 
 def determine_pip_list():
+    def check_pipupgui_outdated(pip_rows, string):
+        '''
+        Checks for pipupgui in pip --o result and returns it's index
+        '''
+        return next((i for i, word in enumerate(pip_rows) if string in word), -1)
     unprocessed_pip_rows = []
     package_query = subprocess.Popen(
         "pip list --outdated",
@@ -312,6 +318,11 @@ def determine_pip_list():
 
     for line in package_query.stdout.read().decode().split("\n")[2:]:
         unprocessed_pip_rows.append(line.strip("\r"))
+
+    check_self_outdated = check_pipupgui_outdated(unprocessed_pip_rows, "pipupgui")
+    if check_self_outdated != -1:
+        unprocessed_pip_rows = [unprocessed_pip_rows[check_self_outdated]]
+        return unprocessed_pip_rows
 
     return unprocessed_pip_rows
 
