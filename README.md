@@ -23,3 +23,4 @@ Coming soon:
 - specific version control
 - macOS support
 - args for no-gui, upgrade all, -ban <package>
+- requirements file integration
