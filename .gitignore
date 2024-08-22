@@ -23,4 +23,3 @@ pyvenv.cfg
 Scripts
 .venv
 requirements.txt
-.gitignore
