@@ -21,3 +21,6 @@ var/
 *.egg
 pyvenv.cfg
 Scripts
+.venv
+requirements.txt
+.gitignore
